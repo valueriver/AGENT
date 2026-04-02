@@ -1,0 +1,19 @@
+{
+  "name": "agent-cli",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agent": "./cli.js"
+  },
+  "scripts": {
+    "start": "node ./cli.js",
+    "serve": "node ./server.js",
+    "help": "node ./cli.js --help"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.0",
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0"
+  }
+}
