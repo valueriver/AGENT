@@ -1,29 +1,21 @@
-#!/usr/bin/env node
-
-import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { chat } from "./agent/handler.js";
-import config from "./config.js";
-import { ensureDir, loadMessagesFile, parseJson, resolveMessagesFile, saveMessagesFile } from "./utils.js";
+import { chat } from "../agent/handler.js";
+import config from "../config.js";
+import { appendMessageToBase, ensureDir, getLastAssistantMessage, loadMessagesFile, resolveMessagesFile, saveMessagesFile } from "../utils.js";
+import { emitBaseEvent } from "./events.js";
+import { sendSse } from "./http.js";
 
-const APP_DIR = path.dirname(fileURLToPath(import.meta.url));
-const DEFAULT_PORT = 9503;
+const APP_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const BASE_INFO_START = "<base_info>";
 const BASE_INFO_END = "</base_info>";
+let activeBaseDir = "";
 
-const sendJson = (res, statusCode, payload) => {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
-  res.end(`${JSON.stringify(payload, null, 2)}\n`);
+const setActiveBaseDir = (baseDir) => {
+  activeBaseDir = baseDir;
 };
 
-const readBody = async (req) => {
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(Buffer.from(chunk));
-  }
-  return Buffer.concat(chunks).toString("utf8");
-};
+const getActiveBaseDir = () => activeBaseDir;
 
 const resolveBaseDir = (baseDir) => {
   const value = String(baseDir || "").trim();
@@ -85,49 +77,70 @@ const injectSystemMessage = (messages, system) => {
   return [{ role: "system", content: system }, ...next];
 };
 
-const handleChat = async (req, res) => {
-  const raw = await readBody(req);
-  const body = parseJson(raw || "{}", "server.chat.body");
-  const baseDir = resolveBaseDir(body.baseDir);
-  const config = mergeConfig(body);
-  requireConfig(config);
-  await ensureDir(baseDir);
-  const runtimeSystem = buildSystemWithBaseInfo(config.system, baseDir);
+const sanitizeTaskName = (taskName) => {
+  const value = String(taskName || "").trim();
+  if (!value) throw new Error("taskName is required");
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "task";
+};
 
+const prepareChatInput = async (body) => {
+  const baseDir = resolveBaseDir(body.baseDir);
+  setActiveBaseDir(baseDir);
+  const mergedConfig = mergeConfig(body);
+  requireConfig(mergedConfig);
+  await ensureDir(baseDir);
+  const runtimeSystem = buildSystemWithBaseInfo(mergedConfig.system, baseDir);
   let messages = Array.isArray(body.messages) ? body.messages : await loadMessagesFile(baseDir, runtimeSystem);
   messages = injectSystemMessage(messages, runtimeSystem);
   if (body.prompt) {
     messages = [...messages, { role: "user", content: String(body.prompt) }];
   }
-
-  const result = await chat(messages, config);
-  const messagesFile = await saveMessagesFile(baseDir, result.messages);
-  sendJson(res, 200, {
-    ok: true,
+  return {
     baseDir,
-    messagesFile,
-    text: result.text,
-    messages: result.messages
-  });
+    config: mergedConfig,
+    messages
+  };
 };
 
-const server = http.createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url || "/", "http://127.0.0.1");
-    if (req.method === "GET" && url.pathname === "/health") {
-      sendJson(res, 200, { ok: true, port: DEFAULT_PORT });
-      return;
+const runBaseChat = async (baseDir, input = {}, onEvent) => {
+  const { config: mergedConfig, messages } = await prepareChatInput({
+    ...input,
+    baseDir
+  });
+  emitBaseEvent(baseDir, sendSse, "start", { ok: true, baseDir });
+  const result = await chat(messages, {
+    ...mergedConfig,
+    onEvent: (event) => {
+      emitBaseEvent(baseDir, sendSse, event.type, event);
+      onEvent?.(event);
     }
-    if (req.method === "POST" && url.pathname === "/chat") {
-      await handleChat(req, res);
-      return;
-    }
-    sendJson(res, 404, { ok: false, error: "Not found" });
-  } catch (error) {
-    sendJson(res, 500, { ok: false, error: error.message });
-  }
-});
+  });
+  const messagesFile = await saveMessagesFile(baseDir, result.messages);
+  emitBaseEvent(baseDir, sendSse, "saved", { ok: true, baseDir, messagesFile });
+  emitBaseEvent(baseDir, sendSse, "end", { ok: true, baseDir });
+  return { result, messagesFile };
+};
 
-server.listen(DEFAULT_PORT, "127.0.0.1", () => {
-  process.stdout.write(`agent server listening on http://127.0.0.1:${DEFAULT_PORT}\n`);
-});
+const runTaskInBackground = async ({ parentBaseDir, childBaseDir, taskName, input }) => {
+  try {
+    const { result } = await runBaseChat(childBaseDir, input);
+    const lastAssistant = getLastAssistantMessage(result.messages);
+    const summary = lastAssistant?.content || result.text || "";
+    await appendMessageToBase(parentBaseDir, {
+      role: "user",
+      content: `[agent:${taskName}][status:done]\nchildBaseDir: ${childBaseDir}\n${summary}`
+    });
+    await runBaseChat(parentBaseDir);
+  } catch (error) {
+    await appendMessageToBase(parentBaseDir, {
+      role: "user",
+      content: `[agent:${taskName}][status:error]\nchildBaseDir: ${childBaseDir}\n${error.message}`
+    });
+    try {
+      await runBaseChat(parentBaseDir);
+    } catch {
+    }
+  }
+};
+
+export { getActiveBaseDir, prepareChatInput, resolveBaseDir, resolveMessagesFile, runBaseChat, runTaskInBackground, sanitizeTaskName };

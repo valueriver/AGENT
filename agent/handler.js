@@ -7,6 +7,7 @@ const chat = async (messages, {
   apiUrl,
   apiKey,
   model,
+  onEvent = () => {},
   signal,
   maxRounds = 50,
   enableToolResultTruncate = true,
@@ -28,12 +29,17 @@ const chat = async (messages, {
         tool_calls: message.tool_calls
       };
       workMessages.push(assistantMsg);
+      onEvent({ type: "assistant_tool_calls", message: assistantMsg });
+      for (const toolCall of message.tool_calls) {
+        onEvent({ type: "tool_call", toolCall });
+      }
       const toolMessages = await runTools(message.tool_calls, {
         enableToolResultTruncate: opts.enableToolResultTruncate,
         toolResultMaxChars: opts.toolResultMaxChars
       });
       for (const toolMessage of toolMessages) {
         workMessages.push(toolMessage);
+        onEvent({ type: "tool_result", message: toolMessage });
       }
       continue;
     }
@@ -41,12 +47,14 @@ const chat = async (messages, {
     const text = message.content ?? "";
     const replyMsg = { role: "assistant", content: text };
     workMessages.push(replyMsg);
+    onEvent({ type: "done", message: replyMsg, text });
     return { text, messages: workMessages };
   }
 
   const text = "(达到最大轮次限制)";
   const replyMsg = { role: "assistant", content: text };
   workMessages.push(replyMsg);
+  onEvent({ type: "done", message: replyMsg, text });
   return { text, messages: workMessages };
 };
 

@@ -42,4 +42,20 @@ const saveMessagesFile = async (baseDir, messages) => {
   return messagesFile;
 };
 
-export { ensureDir, loadMessagesFile, parseJson, resolveMessagesFile, saveMessagesFile };
+const appendMessageToBase = async (baseDir, message) => {
+  const messages = await loadMessagesFile(baseDir);
+  messages.push(message);
+  await saveMessagesFile(baseDir, messages);
+  return messages;
+};
+
+const getLastAssistantMessage = (messages = []) => {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "assistant") {
+      return messages[i];
+    }
+  }
+  return null;
+};
+
+export { appendMessageToBase, ensureDir, getLastAssistantMessage, loadMessagesFile, parseJson, resolveMessagesFile, saveMessagesFile };

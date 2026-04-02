@@ -8,7 +8,7 @@
   },
   "scripts": {
     "start": "node ./cli.js",
-    "serve": "node ./server.js",
+    "serve": "node ./server/index.js",
     "help": "node ./cli.js --help"
   },
   "dependencies": {

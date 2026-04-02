@@ -24,7 +24,7 @@ export AGENT_MODEL=gpt-4.1-mini
 先启动服务：
 
 ```bash
-node server.js
+node server/index.js
 ```
 
 再进入交互模式：
@@ -89,3 +89,24 @@ node cli.js \
 - 每个 base 一个数字目录，按 `1`、`2`、`3` 递增
 - `messages.json` 由 `9503` 服务读写
 - `node cli.js -1` 会加载最新一个 base
+
+## Task
+
+- `POST /task` 用来创建子 agent 任务
+- 子任务目录固定为 `<parentBaseDir>/agent/<taskName>/`
+- 默认只需要传：
+  - `name`
+  - `detail`
+- parent base 默认按当前 active base 自动补全
+- system 和初始消息由服务自动注入
+- 服务会立即返回 `accepted`
+- 子任务在后台执行
+- 执行完成后，服务会自动往父 base 追加一条 `user` 消息，格式为：
+  - `[agent:<taskName>][status:done]`
+  - 或 `[agent:<taskName>][status:error]`
+
+## Stream
+
+- CLI 使用单条长期 SSE：`GET /base/stream?baseDir=...`
+- 用户输入通过 `POST /chat` 投递
+- 工具调用、工具结果、assistant 回复、子任务完成后的父 agent 自动继续运行，都会从这条 base stream 推送回来
