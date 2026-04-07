@@ -249,10 +249,17 @@ print_usage() {
   printf '  the local server is already started by install.sh\n'
   printf '  later runs of agent will also auto-start the server if needed\n'
   if [[ -n "$profile_file" && ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-    printf '\n'
-    printf 'PATH not active in this shell yet. Run:\n'
-    printf '  source "%s"\n' "$profile_file"
-    printf 'or reopen the terminal.\n'
+    if has_cmd agent; then
+      printf '\n'
+      printf 'Note: agent is available via /usr/local/bin symlink.\n'
+      printf '  To also add ~/.local/bin to your PATH permanently, run:\n'
+      printf '  source "%s"\n' "$profile_file"
+    else
+      printf '\n'
+      printf 'PATH not active in this shell yet. Run:\n'
+      printf '  source "%s"\n' "$profile_file"
+      printf 'or reopen the terminal.\n'
+    fi
   fi
 }
 
@@ -271,6 +278,14 @@ main() {
   log "creating terminal command: $WRAPPER_PATH"
   write_wrapper
   profile_file="$(append_path_hint || true)"
+
+  # Try to symlink into /usr/local/bin so the command is available immediately
+  # without requiring the user to source their profile or open a new terminal.
+  if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && [[ -d /usr/local/bin ]]; then
+    if ln -sf "$WRAPPER_PATH" /usr/local/bin/agent 2>/dev/null || run_root ln -sf "$WRAPPER_PATH" /usr/local/bin/agent 2>/dev/null; then
+      log "symlinked agent to /usr/local/bin/agent for immediate use"
+    fi
+  fi
 
   start_server
   log "install complete"
