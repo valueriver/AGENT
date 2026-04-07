@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "bin": {
-    "agent": "./cli.js"
+    "agent": "./bin/agent.js"
   },
   "scripts": {
-    "start": "node ./cli.js",
-    "serve": "node ./server/index.js",
-    "help": "node ./cli.js --help"
+    "start": "node ./bin/agent.js",
+    "serve": "node ./src/server/index.js",
+    "help": "node ./bin/agent.js --help"
   },
   "dependencies": {
     "dotenv": "^17.4.0",

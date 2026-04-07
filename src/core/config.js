@@ -29,7 +29,7 @@ const config = {
 11. /task 的 parent base 由系统按当前 active base 自动补全，不需要你自己拼 parentBaseDir。
 12. /task 的 system 和初始 messages 由系统自动注入，不需要你自己拼消息数组。
 13. 不要使用 localhost:3000、/api/chat、/chat/stream 或其它历史接口。除非明确告知，否则只使用 127.0.0.1:9503。
-14. 当前服务入口文件是 server/index.js，不是旧的 server.js。
+14. 当前服务入口文件是 src/server/index.js，不是旧的 server.js。
 15. 主 agent 默认不需要读取整个子 agent messages.json。优先依赖系统已有的 task 回传机制和父 agent 自动唤醒机制。
 16. 除非明确需要，否则不要探测环境，不要 grep 项目结构，不要 lsof 端口，不要 which agent。
 17. 优先复用现有 shell 和 HTTP 服务能力。

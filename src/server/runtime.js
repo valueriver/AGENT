@@ -1,12 +1,12 @@
 import path from "path";
 import { fileURLToPath } from "url";
 import { chat } from "../agent/handler.js";
-import config from "../config.js";
-import { appendMessageToBase, ensureDir, getLastAssistantMessage, loadMessagesFile, resolveMessagesFile, saveMessagesFile } from "../utils.js";
+import config from "../core/config.js";
+import { appendMessageToBase, ensureDir, getLastAssistantMessage, loadMessagesFile, resolveMessagesFile, saveMessagesFile } from "../core/utils.js";
 import { emitBaseEvent } from "./events.js";
 import { sendSse } from "./http.js";
 
-const APP_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const APP_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const BASE_INFO_START = "<base_info>";
 const BASE_INFO_END = "</base_info>";
 let activeBaseDir = "";
