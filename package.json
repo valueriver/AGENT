@@ -1,19 +1,22 @@
 {
-  "name": "agent-cli",
-  "version": "1.0.0",
+  "name": "agent-web",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "agent": "./bin/agent.js"
-  },
   "scripts": {
-    "start": "node ./bin/agent.js",
-    "serve": "node ./src/server/index.js",
-    "help": "node ./bin/agent.js --help"
+    "start": "npm run build:web && node ./index.js",
+    "dev:server": "node --watch ./index.js",
+    "dev:web": "cd src/web && npm run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
+    "build:web": "cd src/web && npm run build",
+    "start:prod": "node ./index.js"
   },
   "dependencies": {
+    "better-sqlite3": "^12.8.0",
     "dotenv": "^17.4.0",
-    "marked": "^15.0.12",
-    "marked-terminal": "^7.3.0"
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

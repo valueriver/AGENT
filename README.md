@@ -1,215 +1,195 @@
-# AGENT
+# AGENT Web
 
-AGENT 是一个本地优先的命令行 agent。它包含两部分：
+AGENT Web 是一个基于 Web 的 AI 智能代理应用，支持多会话管理、实时流式输出和工具调用可视化。
 
-- 一个交互式 CLI，命令是 `agent`
-- 一个本地 HTTP 服务，负责多轮对话、工具调用和 task 执行
+## 特性
 
-当前默认只内置一个工具：
+- 🌐 **Web 界面** - 现代化的浏览器交互界面
+- 💬 **多会话管理** - 同时管理多个对话上下文
+- 🔄 **实时流式输出** - SSE 实时推送工具调用和结果
+- 🛠️ **工具调用可视化** - 清晰展示 shell 命令执行过程
+- 📝 **Markdown 渲染** - 完整的 Markdown 格式支持
+- 🎨 **暗色主题** - 舒适的深色 UI
+- 📱 **响应式设计** - 适配桌面和移动设备
 
-- `shell`，用于执行 shell 命令并返回输出
+## 快速开始
 
-## 目录结构
-
-```text
-AGENT/
-  package.json
-  package-lock.json
-  README.md
-  install.sh
-  Dockerfile
-  docker-compose.yml
-  bin/
-    agent.js
-  src/
-    cli/
-      index.js
-      args.js
-      base.js
-      config-file.js
-      constants.js
-      printer.js
-      server.js
-      session.js
-      stream.js
-    server/
-      index.js
-      routes.js
-      runtime.js
-      http.js
-      events.js
-    agent/
-      handler.js
-      runner.js
-      tools.js
-      functions.js
-      utils.js
-    core/
-      config.js
-      llm.js
-      utils.js
-```
-
-## 安装
-
-Linux 服务器上一条命令安装：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/valueriver/AGENT/main/install.sh | bash
-```
-
-如果已经 clone 到本地，也可以直接执行：
-
-```bash
-chmod +x install.sh
-./install.sh
-```
-
-安装脚本会自动：
-
-- 安装 `git`
-- 安装 `node` 和 `npm`
-- 从 GitHub 拉取代码
-- 安装依赖
-- 创建 `agent` 命令
-- 启动本地服务
-
-## 配置
-
-推荐直接用 CLI 写入配置文件：
-
-```bash
-agent --config https://api.openai.com/v1/chat/completions YOUR_API_KEY gpt-4.1-mini
-```
-
-这条命令会生成：
-
-```text
-~/.config/agent-cli/config.env
-```
-
-也可以使用环境变量：
-
-```bash
-export AGENT_API_URL=https://api.openai.com/v1/chat/completions
-export OPENAI_API_KEY=YOUR_API_KEY
-export AGENT_MODEL=gpt-4.1-mini
-```
-
-配置优先级：
-
-1. 命令行参数
-2. `src/core/config.js` 默认值
-3. 环境变量
-
-## 使用
-
-进入交互模式：
-
-```bash
-agent
-```
-
-单次执行：
-
-```bash
-agent "帮我看看当前目录"
-```
-
-加载最近一次 base：
-
-```bash
-agent -1
-```
-
-加载指定 base：
-
-```bash
-agent 3
-```
-
-查看帮助：
-
-```bash
-agent --help
-```
-
-## 本地开发
-
-安装依赖：
+### 安装依赖
 
 ```bash
 npm install
 ```
 
-启动服务：
+### 配置
+
+使用环境变量或配置文件：
 
 ```bash
-npm run serve
+# 方式1: 环境变量
+export AGENT_API_URL=https://api.openai.com/v1/chat/completions
+export OPENAI_API_KEY=your_api_key
+export AGENT_MODEL=gpt-4.1-mini
+
+# 方式2: 创建 .env 文件
+cp .env.example .env
+# 编辑 .env 填入你的 API 密钥
 ```
 
-另一个终端进入 CLI：
+### 开发模式
+
+同时启动前端和后端：
 
 ```bash
-node ./bin/agent.js
+npm run dev
 ```
 
-## Docker
-
-构建镜像：
+或分别启动：
 
 ```bash
-docker build -t agent-cli .
+# 启动后端服务 (端口 9503)
+npm run dev:server
+
+# 启动前端开发服务器 (端口 5173)
+npm run dev:web
 ```
 
-启动容器：
+### 生产模式
+
+构建前端并启动服务：
 
 ```bash
-docker run -d \
-  --name agent-cli \
-  -p 9503:9503 \
-  -e OPENAI_API_KEY=YOUR_API_KEY \
-  -e AGENT_MODEL=gpt-4.1-mini \
-  -v "$(pwd)/bases:/app/bases" \
-  agent-cli
+# 构建前端
+npm run build:web
+
+# 启动服务
+npm start
 ```
 
-也可以直接用 Compose：
+访问 http://localhost:9503
+
+## Docker 部署
 
 ```bash
+# 构建并启动
 docker compose up -d --build
+
+# 访问
+open http://localhost:9503
 ```
 
-容器默认只启动本地服务 `src/server/index.js`。如果你要进入容器内使用 CLI：
+## 项目结构
 
-```bash
-docker exec -it agent-cli node ./bin/agent.js
+```
+AGENT/
+  package.json
+  docker-compose.yml
+  bin/
+    agent.js              # 服务启动脚本
+  src/
+    server/               # 后端服务
+      index.js            # HTTP 服务器入口
+      routes.js           # API 路由和静态文件服务
+      runtime.js          # 代理运行逻辑
+      http.js             # HTTP 辅助
+      events.js           # SSE 事件系统
+    agent/                # AI 代理核心
+      handler.js          # 对话处理循环
+      runner.js           # 工具执行
+      tools.js            # 工具定义
+      functions.js        # 内置工具 (shell)
+      utils.js            # 工具函数
+    core/                 # 核心模块
+      config.js           # 配置管理
+      llm.js              # LLM API 调用
+      utils.js            # 文件工具
+    web/                  # 前端应用
+      package.json
+      vite.config.js
+      src/
+        main.jsx          # React 入口
+        App.jsx           # 主应用组件
+        index.css         # 全局样式
+        api/
+          index.js        # API 客户端
+        components/
+          Sidebar.jsx     # 侧边栏组件
+          ChatWindow.jsx  # 聊天窗口组件
+          MessageBubble.jsx # 消息气泡组件
 ```
 
-停止容器：
+## API 接口
 
-```bash
-docker compose down
+后端服务默认监听 `http://127.0.0.1:9503`
+
+### 对话相关
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/health` | 健康检查 |
+| POST | `/chat` | 发送聊天消息 |
+| GET | `/base/stream?baseDir=<id>` | SSE 事件流 |
+| POST | `/task` | 创建子任务 |
+
+### Base 管理
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/bases` | 获取所有会话列表 |
+| POST | `/api/bases` | 创建新会话 |
+| DELETE | `/api/bases/<id>` | 删除会话 |
+| GET | `/api/bases/<id>/messages` | 获取会话消息历史 |
+
+## 架构
+
 ```
-
-## 服务接口
-
-本地服务默认监听：
-
-```text
-http://127.0.0.1:9503
+┌─────────────────────┐
+│   浏览器 (React)     │
+│   - 侧边栏           │
+│   - 聊天窗口         │
+│   - 消息气泡         │
+└──────────┬──────────┘
+           │ HTTP + SSE
+┌──────────▼──────────┐
+│   HTTP Server       │
+│   - REST API        │
+│   - SSE 事件流      │
+│   - 静态文件服务     │
+└──────────┬──────────┘
+           │
+┌──────────▼──────────┐
+│   Agent Core        │
+│   - LLM 调用        │
+│   - 工具执行        │
+│   - 多轮对话循环     │
+└─────────────────────┘
 ```
-
-接口：
-
-- `GET /health`
-- `POST /chat`
-- `GET /base/stream`
-- `POST /task`
 
 ## Base 与 Task
 
-- 每个 base 对应一个目录
-- 对话历史写入 `bases/<id>/messages.json`
-- 子任务写入 `<parentBase>/agent/<taskName>/messages.json`
-- 子任务完成后，结果会自动追加回父 base，并触发父 agent 继续运行
+- 每个 **base** 是一个独立的会话目录
+- 对话历史存储在 `bases/<id>/messages.json`
+- **子任务** 会创建在 `<parentBase>/agent/<taskName>/` 目录下
+- 子任务完成后，结果自动追加回父 base
+
+## 内置工具
+
+当前只内置了一个工具：
+
+- **shell** - 执行 shell 命令，30 秒超时
+
+## 技术栈
+
+**后端:**
+- Node.js (ES Modules)
+- 原生 HTTP 模块
+- SSE (Server-Sent Events)
+
+**前端:**
+- React 19
+- Vite 6
+- Tailwind CSS 4
+- Marked (Markdown 渲染)
+
+## License
+
+MIT

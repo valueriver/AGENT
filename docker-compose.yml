@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agent-cli
+    container_name: agent-web
     ports:
       - "9503:9503"
     environment:

@@ -4,3 +4,8 @@ node_modules/
 .DS_Store
 bases/
 conversations/
+config.json
+data/
+.qwen/
+src/web/dist/
+*.db
