@@ -14,7 +14,8 @@
   "dependencies": {
     "better-sqlite3": "^12.8.0",
     "dotenv": "^17.4.0",
-    "marked": "^15.0.12"
+    "marked": "^15.0.12",
+    "node-pty": "^1.1.0"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

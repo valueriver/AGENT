@@ -1,6 +1,6 @@
 import { tools } from "./tools.js";
 import { runTools } from "./runner.js";
-import { callLlm } from "../core/llm.js";
+import { callLlmStream } from "../core/llm.js";
 import { normalizeAgentMessages, normalizeChatOptions } from "./utils.js";
 
 const chat = async (messages, {
@@ -20,16 +20,25 @@ const chat = async (messages, {
   while (round++ < opts.maxRounds) {
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     const payload = { model, messages: workMessages, tools };
-    const message = await callLlm(apiUrl, apiKey, payload, { signal });
+    const message = await callLlmStream(apiUrl, apiKey, payload, {
+      signal,
+      onDelta: (delta) => {
+        if (delta) onEvent({ type: "delta", delta });
+      }
+    });
+    if (message.usage) {
+      onEvent({ type: "usage", usage: message.usage });
+    }
 
     if (Array.isArray(message.tool_calls) && message.tool_calls.length > 0) {
       const assistantMsg = {
         role: "assistant",
         content: message.content ?? null,
-        tool_calls: message.tool_calls
+        tool_calls: message.tool_calls,
+        ...(message.usage ? { usage: message.usage } : {})
       };
       workMessages.push(assistantMsg);
-      onEvent({ type: "assistant_tool_calls", message: assistantMsg });
+      onEvent({ type: "assistant_tool_calls", message: assistantMsg, usage: message.usage });
       for (const toolCall of message.tool_calls) {
         onEvent({ type: "tool_call", toolCall });
       }
@@ -45,9 +54,13 @@ const chat = async (messages, {
     }
 
     const text = message.content ?? "";
-    const replyMsg = { role: "assistant", content: text };
+    const replyMsg = {
+      role: "assistant",
+      content: text,
+      ...(message.usage ? { usage: message.usage } : {})
+    };
     workMessages.push(replyMsg);
-    onEvent({ type: "done", message: replyMsg, text });
+    onEvent({ type: "done", message: replyMsg, text, usage: message.usage });
     return { text, messages: workMessages };
   }
 

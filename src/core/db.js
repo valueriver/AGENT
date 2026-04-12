@@ -32,12 +32,19 @@ export const initDb = () => {
       type TEXT,
       tool_calls TEXT,
       arguments TEXT,
+      usage TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (base_id) REFERENCES bases(id) ON DELETE CASCADE
     );
 
     CREATE INDEX IF NOT EXISTS idx_messages_base ON messages(base_id);
   `);
+
+  const messageColumns = db.prepare("PRAGMA table_info(messages)").all();
+  const hasUsageColumn = messageColumns.some((column) => column.name === "usage");
+  if (!hasUsageColumn) {
+    db.exec("ALTER TABLE messages ADD COLUMN usage TEXT");
+  }
 };
 
 export const getDb = () => db;
@@ -111,17 +118,19 @@ export const baseOps = {
 
 // Message 操作
 export const messageOps = {
-  get: (baseId, page = 1, limit = 50) => {
+  get: (baseId, page = 1, limit = 50, order = "asc") => {
     const offset = (page - 1) * limit;
+    const normalizedOrder = String(order).toLowerCase() === "desc" ? "DESC" : "ASC";
     const total = db.prepare(
       "SELECT COUNT(*) as count FROM messages WHERE base_id = ?"
     ).get(Number(baseId)).count;
 
     const messages = db.prepare(`
       SELECT role, content, type, tool_calls, arguments
+      , usage
       FROM messages
       WHERE base_id = ?
-      ORDER BY id ASC
+      ORDER BY id ${normalizedOrder}
       LIMIT ? OFFSET ?
     `).all(Number(baseId), limit, offset);
 
@@ -132,6 +141,7 @@ export const messageOps = {
         ...(m.type && { type: m.type }),
         ...(m.tool_calls && { tool_calls: JSON.parse(m.tool_calls) }),
         ...(m.arguments && { arguments: JSON.parse(m.arguments) }),
+        ...(m.usage && { usage: JSON.parse(m.usage) }),
       })),
       total,
       page,
@@ -170,9 +180,30 @@ export const messageOps = {
       totalPages: Math.ceil(total / limit),
     };
   },
+  getUsageSummary: (baseId) => {
+    const rows = db.prepare(
+      "SELECT usage FROM messages WHERE base_id = ? AND usage IS NOT NULL"
+    ).all(Number(baseId));
+
+    return rows.reduce((summary, row) => {
+      const usage = JSON.parse(row.usage);
+      summary.promptTokens += Number(usage.promptTokens) || 0;
+      summary.cachedPromptTokens += Number(usage.cachedPromptTokens) || 0;
+      summary.completionTokens += Number(usage.completionTokens) || 0;
+      summary.totalTokens += Number(usage.totalTokens) || 0;
+      summary.recordedResponses += 1;
+      return summary;
+    }, {
+      promptTokens: 0,
+      cachedPromptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      recordedResponses: 0,
+    });
+  },
   saveBatch: (baseId, messages) => {
     const insert = db.prepare(
-      "INSERT INTO messages (base_id, role, content, type, tool_calls, arguments) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO messages (base_id, role, content, type, tool_calls, arguments, usage) VALUES (?, ?, ?, ?, ?, ?, ?)"
     );
     const tx = db.transaction((msgs) => {
       for (const msg of msgs) {
@@ -182,7 +213,8 @@ export const messageOps = {
           msg.content ?? null,
           msg.type ?? null,
           msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
-          msg.arguments ? JSON.stringify(msg.arguments) : null
+          msg.arguments ? JSON.stringify(msg.arguments) : null,
+          msg.usage ? JSON.stringify(msg.usage) : null
         );
       }
       db.prepare("UPDATE bases SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(Number(baseId));
@@ -195,14 +227,15 @@ export const messageOps = {
   },
   append: (baseId, msg) => {
     db.prepare(
-      "INSERT INTO messages (base_id, role, content, type, tool_calls, arguments) VALUES (?, ?, ?, ?, ?, ?)"
+      "INSERT INTO messages (base_id, role, content, type, tool_calls, arguments, usage) VALUES (?, ?, ?, ?, ?, ?, ?)"
     ).run(
       Number(baseId),
       msg.role,
       msg.content ?? null,
       msg.type ?? null,
       msg.tool_calls ? JSON.stringify(msg.tool_calls) : null,
-      msg.arguments ? JSON.stringify(msg.arguments) : null
+      msg.arguments ? JSON.stringify(msg.arguments) : null,
+      msg.usage ? JSON.stringify(msg.usage) : null
     );
     db.prepare("UPDATE bases SET updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(Number(baseId));
   },

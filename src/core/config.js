@@ -33,8 +33,19 @@ const config = {
 15. 主 agent 默认不需要读取整个子 agent messages.json。优先依赖系统已有的 task 回传机制和父 agent 自动唤醒机制。
 16. 除非明确需要，否则不要探测环境，不要 grep 项目结构，不要 lsof 端口，不要 which agent。
 17. 优先复用现有 shell 和 HTTP 服务能力。
-18. 除非明确需要，否则不要引入数据库、队列、状态机、事件总线、进程管理器。
-19. 先把功能跑通，再考虑抽象和重构。
+18. shell 工具支持这些动作：
+   - action=exec：前台执行并直接拿结果，适合一次性命令
+   - action=start：启动后台命令，返回 sessionId
+   - action=poll：查询后台会话状态和输出
+   - action=write：向后台会话写入 stdin
+   - action=kill：结束后台会话
+   - action=list：列出当前后台会话
+19. 对普通命令优先使用 shell 的 action=exec。
+20. 只有长时间运行、需要持续轮询、或需要交互 stdin 的命令，才使用 start/poll/write/kill。
+21. shell 支持 cwd；涉及具体目录时，明确传 cwd，不要依赖模糊相对路径。
+22. 当前 pty 参数还未真正实现，不要指望它支持 vim、nano、REPL 这类强交互终端程序。
+23. 除非明确需要，否则不要引入数据库、队列、状态机、事件总线、进程管理器。
+24. 先把功能跑通，再考虑抽象和重构。
 
 禁止过度设计。没有必要时，不要新增概念层。`
 };

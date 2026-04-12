@@ -21,6 +21,15 @@ const setActiveBaseDir = (baseDir) => {
 
 const getActiveBaseDir = () => activeBaseDir;
 
+const getBaseIdFromBaseDir = (baseDir) => {
+  const value = String(baseDir || "").trim();
+  const baseName = path.basename(value);
+  if (!/^\d+$/.test(baseName)) {
+    throw new Error(`invalid base id from baseDir: ${baseDir}`);
+  }
+  return baseName;
+};
+
 const resolveBaseDir = (baseDir) => {
   const value = String(baseDir || "").trim();
   if (!value) throw new Error("baseDir is required");
@@ -36,8 +45,35 @@ const mergeConfig = (input = {}) => {
     apiUrl: input.apiUrl || serverCfg.apiUrl || "",
     apiKey: input.apiKey || serverCfg.apiKey || "",
     model: input.model || serverCfg.model || "",
-    system: input.system || serverCfg.system || ""
+    system: input.system || serverCfg.system || "",
+    contextTurns: input.contextTurns ?? serverCfg.contextTurns ?? 10,
   };
+};
+
+const limitMessagesByTurns = (messages, contextTurns) => {
+  const turns = Math.max(0, Number.parseInt(contextTurns, 10) || 0);
+  if (!Array.isArray(messages) || turns === 0) {
+    return Array.isArray(messages) ? messages : [];
+  }
+
+  let remainingUserTurns = turns;
+  let startIndex = 0;
+
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "user") {
+      remainingUserTurns -= 1;
+      startIndex = i;
+      if (remainingUserTurns === 0) {
+        break;
+      }
+    }
+  }
+
+  if (remainingUserTurns > 0) {
+    return messages;
+  }
+
+  return messages.slice(startIndex);
 };
 
 const requireConfig = ({ apiUrl, apiKey, model }) => {
@@ -92,23 +128,25 @@ const prepareChatInput = async (body) => {
   requireConfig(mergedConfig);
 
   const runtimeSystem = buildSystemWithBaseInfo(mergedConfig.system, baseDir);
-  let messages = Array.isArray(body.messages)
+  let contextMessages = Array.isArray(body.messages)
     ? body.messages
-    : messageOps.get(baseDir);
+    : messageOps.get(getBaseIdFromBaseDir(baseDir)).messages;
 
-  messages = injectSystemMessage(messages, runtimeSystem);
+  contextMessages = limitMessagesByTurns(contextMessages, mergedConfig.contextTurns);
+  let messages = injectSystemMessage(contextMessages, runtimeSystem);
   if (body.prompt) {
     messages = [...messages, { role: "user", content: String(body.prompt) }];
   }
   return {
     baseDir,
     config: mergedConfig,
-    messages
+    messages,
+    contextMessages
   };
 };
 
 const runBaseChat = async (baseDir, input = {}, onEvent) => {
-  const { config: mergedConfig, messages } = await prepareChatInput({
+  const { config: mergedConfig, messages, contextMessages } = await prepareChatInput({
     ...input,
     baseDir
   });
@@ -123,8 +161,15 @@ const runBaseChat = async (baseDir, input = {}, onEvent) => {
   });
 
   // 保存到数据库
-  messageOps.saveBatch(baseDir, result.messages);
-  baseOps.update(baseDir);
+  const baseId = getBaseIdFromBaseDir(baseDir);
+  const persistedMessages = result.messages
+    .filter((message) => message.role !== "system")
+    .slice(contextMessages.length);
+
+  if (persistedMessages.length > 0) {
+    messageOps.saveBatch(baseId, persistedMessages);
+  }
+  baseOps.update(baseId);
 
   emitBaseEvent(baseDir, sendSse, "saved", { ok: true, baseDir });
   emitBaseEvent(baseDir, sendSse, "end", { ok: true, baseDir });
@@ -144,13 +189,13 @@ const runTaskInBackground = async ({ parentBaseDir, childBaseDir, taskName, inpu
     const lastAssistant = getLastAssistantMessage(result.messages);
     const summary = lastAssistant?.content || result.text || "";
 
-    messageOps.append(parentBaseDir, {
+    messageOps.append(getBaseIdFromBaseDir(parentBaseDir), {
       role: "user",
       content: `[agent:${taskName}][status:done]\nchildBaseDir: ${childBaseDir}\n${summary}`
     });
     await runBaseChat(parentBaseDir);
   } catch (error) {
-    messageOps.append(parentBaseDir, {
+    messageOps.append(getBaseIdFromBaseDir(parentBaseDir), {
       role: "user",
       content: `[agent:${taskName}][status:error]\nchildBaseDir: ${childBaseDir}\n${error.message}`
     });
@@ -160,4 +205,4 @@ const runTaskInBackground = async ({ parentBaseDir, childBaseDir, taskName, inpu
   }
 };
 
-export { getActiveBaseDir, prepareChatInput, resolveBaseDir, runBaseChat, runTaskInBackground, sanitizeTaskName };
+export { getActiveBaseDir, getBaseIdFromBaseDir, prepareChatInput, resolveBaseDir, runBaseChat, runTaskInBackground, sanitizeTaskName };

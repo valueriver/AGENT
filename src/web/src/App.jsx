@@ -1,11 +1,49 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { ChatWindow } from "./components/ChatWindow";
 import { Settings } from "./components/Settings";
 import { SearchModal } from "./components/SearchModal";
-import { Pagination } from "./components/Pagination";
 import { api } from "./api";
+
+const MESSAGE_PAGE_SIZE = 50;
+const EMPTY_USAGE = {
+  promptTokens: 0,
+  cachedPromptTokens: 0,
+  completionTokens: 0,
+  totalTokens: 0,
+  recordedResponses: 0,
+};
+
+const parseToolArguments = (raw) => {
+  if (!raw) return undefined;
+  if (typeof raw !== "string") return raw;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { raw };
+  }
+};
+
+const normalizeUsage = (usage) => ({
+  promptTokens: Math.max(0, Number(usage?.promptTokens) || 0),
+  cachedPromptTokens: Math.max(0, Number(usage?.cachedPromptTokens) || 0),
+  completionTokens: Math.max(0, Number(usage?.completionTokens) || 0),
+  totalTokens: Math.max(0, Number(usage?.totalTokens) || 0),
+  recordedResponses: Math.max(0, Number(usage?.recordedResponses) || 0),
+});
+
+const addUsage = (current, usage) => {
+  const base = normalizeUsage(current);
+  const next = normalizeUsage(usage);
+  return {
+    promptTokens: base.promptTokens + next.promptTokens,
+    cachedPromptTokens: base.cachedPromptTokens + next.cachedPromptTokens,
+    completionTokens: base.completionTokens + next.completionTokens,
+    totalTokens: base.totalTokens + next.totalTokens,
+    recordedResponses: base.recordedResponses + (next.totalTokens > 0 ? 1 : 0),
+  };
+};
 
 // 聊天页面组件
 function ChatPage({ serverConfig, onOpenSettings, onOpenSearch }) {
@@ -13,12 +51,16 @@ function ChatPage({ serverConfig, onOpenSettings, onOpenSearch }) {
   const navigate = useNavigate();
   const [bases, setBases] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [sessionUsage, setSessionUsage] = useState(EMPTY_USAGE);
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [basePage, setBasePage] = useState(1);
   const [baseTotalPages, setBaseTotalPages] = useState(1);
-  const [msgPage, setMsgPage] = useState(1);
-  const [msgTotalPages, setMsgTotalPages] = useState(1);
+  const [olderPage, setOlderPage] = useState(1);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const streamRef = useRef(null);
+  const streamingAssistantIdRef = useRef(null);
 
   const loadBases = useCallback(async (page = 1) => {
     try {
@@ -31,16 +73,49 @@ function ChatPage({ serverConfig, onOpenSettings, onOpenSearch }) {
     } catch (err) { console.error("Failed to load bases:", err); }
   }, []);
 
-  const loadMessages = useCallback(async (id, page = 1) => {
+  const loadLatestMessages = useCallback(async (id) => {
     try {
-      const res = await api.getMessages(id, page);
+      const res = await api.getMessages(id, 1, MESSAGE_PAGE_SIZE, "desc");
       if (res.ok) {
-        setMessages(res.messages);
-        setMsgTotalPages(res.totalPages);
-        setMsgPage(res.page);
+        setMessages([...res.messages].reverse());
+        setOlderPage(2);
+        setHasOlderMessages(res.totalPages > 1);
       }
     } catch (err) { console.error("Failed to load messages:", err); }
   }, []);
+
+  const loadBaseStats = useCallback(async (id) => {
+    try {
+      const res = await api.getBaseStats(id);
+      if (res.ok) {
+        setSessionUsage(normalizeUsage(res.usage));
+      } else {
+        setSessionUsage(EMPTY_USAGE);
+      }
+    } catch (err) {
+      console.error("Failed to load base stats:", err);
+      setSessionUsage(EMPTY_USAGE);
+    }
+  }, []);
+
+  const loadOlderMessages = useCallback(async (id) => {
+    if (!id || isLoadingOlder || !hasOlderMessages) return;
+
+    setIsLoadingOlder(true);
+    try {
+      const res = await api.getMessages(id, olderPage, MESSAGE_PAGE_SIZE, "desc");
+      if (res.ok) {
+        const older = [...res.messages].reverse();
+        setMessages((prev) => [...older, ...prev]);
+        setOlderPage((prev) => prev + 1);
+        setHasOlderMessages(olderPage < res.totalPages);
+      }
+    } catch (err) {
+      console.error("Failed to load older messages:", err);
+    } finally {
+      setIsLoadingOlder(false);
+    }
+  }, [hasOlderMessages, isLoadingOlder, olderPage]);
 
   const handleCreateBase = async () => {
     try {
@@ -73,29 +148,105 @@ function ChatPage({ serverConfig, onOpenSettings, onOpenSearch }) {
       return;
     }
 
+    if (streamRef.current) {
+      streamRef.current.close();
+      streamRef.current = null;
+    }
+
     setIsLoading(true);
+    streamingAssistantIdRef.current = null;
     setMessages((prev) => [...prev, { role: "user", content: content.trim() }]);
 
     try {
-      api.streamEvents(
+      streamRef.current = api.streamEvents(
         baseId,
         (type, data) => {
-          if (type === "tool_call") setMessages((p) => [...p, { role: "assistant", type: "tool_call", ...data }]);
-          else if (type === "tool_result") setMessages((p) => [...p, { role: "assistant", type: "tool_result", ...data }]);
-          else if (type === "done") loadMessages(baseId, msgPage);
+          if (type === "delta") {
+            setMessages((prev) => {
+              const streamId = streamingAssistantIdRef.current || `assistant-stream-${Date.now()}`;
+              streamingAssistantIdRef.current = streamId;
+              const next = [...prev];
+              const idx = next.findIndex((msg) => msg._streamId === streamId);
+              if (idx >= 0) {
+                next[idx] = {
+                  ...next[idx],
+                  content: `${next[idx].content || ""}${data.delta || ""}`,
+                  streaming: true,
+                };
+              } else {
+                next.push({
+                  role: "assistant",
+                  content: data.delta || "",
+                  streaming: true,
+                  _streamId: streamId,
+                });
+              }
+              return next;
+            });
+          } else if (type === "tool_call") {
+            setMessages((prev) => prev.map((msg) => (
+              msg._streamId === streamingAssistantIdRef.current
+                ? { ...msg, streaming: false }
+                : msg
+            )));
+            streamingAssistantIdRef.current = null;
+            setMessages((p) => [...p, {
+              role: "assistant",
+              type: "tool_call",
+              name: data.toolCall?.function?.name || "shell",
+              arguments: parseToolArguments(data.toolCall?.function?.arguments),
+            }]);
+          } else if (type === "tool_result") {
+            setMessages((p) => [...p, {
+              role: "assistant",
+              type: "tool_result",
+              content: data.message?.content || "",
+            }]);
+          } else if (type === "done") {
+            setMessages((prev) => prev.map((msg) => (
+              msg._streamId === streamingAssistantIdRef.current
+                ? { ...msg, streaming: false }
+                : msg
+            )));
+            streamingAssistantIdRef.current = null;
+            setIsLoading(false);
+          } else if (type === "usage") {
+            setSessionUsage((prev) => addUsage(prev, data.usage));
+          } else if (type === "saved") {
+            streamRef.current?.close?.();
+            streamRef.current = null;
+            loadBases(1);
+          }
         },
-        (error) => setMessages((p) => [...p, { role: "assistant", content: `❌ 错误: ${error.error}` }])
+        (error) => {
+          streamingAssistantIdRef.current = null;
+          setIsLoading(false);
+          setMessages((p) => [...p, { role: "assistant", content: `❌ 错误: ${error.error}` }]);
+        }
       );
       await api.chat(baseId, content.trim());
     } catch (err) {
-      setMessages((p) => [...p, { role: "assistant", content: `❌ 请求失败: ${err.message}` }]);
-    } finally {
+      streamingAssistantIdRef.current = null;
       setIsLoading(false);
+      setMessages((p) => [...p, { role: "assistant", content: `❌ 请求失败: ${err.message}` }]);
     }
   };
 
   useEffect(() => { loadBases(basePage); }, [loadBases, basePage]);
-  useEffect(() => { if (baseId) loadMessages(baseId, 1); setMsgPage(1); setMsgTotalPages(1); }, [baseId, loadMessages]);
+  useEffect(() => {
+    setMessages([]);
+    setSessionUsage(EMPTY_USAGE);
+    setOlderPage(1);
+    setHasOlderMessages(false);
+    setIsLoadingOlder(false);
+    if (baseId) {
+      loadLatestMessages(baseId);
+      loadBaseStats(baseId);
+    }
+  }, [baseId, loadBaseStats, loadLatestMessages]);
+  useEffect(() => () => {
+    streamRef.current?.close?.();
+  }, []);
 
   const currentBase = bases.find(b => b.id === baseId);
   if (!currentBase && baseId) return <div className="flex h-screen items-center justify-center text-gray-500">加载中...</div>;
@@ -124,13 +275,15 @@ function ChatPage({ serverConfig, onOpenSettings, onOpenSearch }) {
         <ChatWindow
           base={currentBase}
           messages={messages}
+          sessionUsage={sessionUsage}
+          serverConfig={serverConfig}
           isLoading={isLoading}
+          hasOlderMessages={hasOlderMessages}
+          isLoadingOlder={isLoadingOlder}
+          onLoadOlder={() => loadOlderMessages(baseId)}
           onSendMessage={handleSendMessage}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          msgPage={msgPage}
-          msgTotalPages={msgTotalPages}
-          onMsgPageChange={(p) => loadMessages(baseId, p)}
-          onOpenSearch={onOpenSearch}
+          onOpenSettings={onOpenSettings}
         />
       </main>
     </div>

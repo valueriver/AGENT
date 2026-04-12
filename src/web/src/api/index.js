@@ -33,8 +33,12 @@ export const api = {
     ),
 
   // 获取消息历史 (支持分页)
-  getMessages: (baseId, page = 1, limit = 50) =>
-    fetch(`${API_BASE}/api/bases/${baseId}/messages?page=${page}&limit=${limit}`).then((r) => r.json()),
+  getMessages: (baseId, page = 1, limit = 50, order = "asc") =>
+    fetch(`${API_BASE}/api/bases/${baseId}/messages?page=${page}&limit=${limit}&order=${order}`).then((r) => r.json()),
+
+  // 获取当前会话统计
+  getBaseStats: (baseId) =>
+    fetch(`${API_BASE}/api/bases/${baseId}/stats`).then((r) => r.json()),
 
   // 搜索消息
   search: (query, page = 1, limit = 20) =>
@@ -47,7 +51,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         baseDir,
-        messages: [{ role: "user", content: message }],
+        prompt: message,
         ...options,
       }),
     }).then((r) => r.json()),
@@ -76,6 +80,11 @@ export const api = {
       onEvent?.("tool_call", data);
     });
 
+    eventSource.addEventListener("delta", (e) => {
+      const data = JSON.parse(e.data);
+      onEvent?.("delta", data);
+    });
+
     eventSource.addEventListener("tool_result", (e) => {
       const data = JSON.parse(e.data);
       onEvent?.("tool_result", data);
@@ -84,7 +93,16 @@ export const api = {
     eventSource.addEventListener("done", (e) => {
       const data = JSON.parse(e.data);
       onEvent?.("done", data);
-      eventSource.close();
+    });
+
+    eventSource.addEventListener("usage", (e) => {
+      const data = JSON.parse(e.data);
+      onEvent?.("usage", data);
+    });
+
+    eventSource.addEventListener("saved", (e) => {
+      const data = JSON.parse(e.data);
+      onEvent?.("saved", data);
     });
 
     eventSource.addEventListener("error", (e) => {

@@ -173,9 +173,17 @@ AGENT/
 
 ## 内置工具
 
-当前只内置了一个工具：
+当前内置了一个增强版工具：
 
-- **shell** - 执行 shell 命令，30 秒超时
+- **shell**
+  - `action=exec`：前台执行并直接返回结果
+  - `action=start`：启动后台命令并返回 `sessionId`
+  - `action=poll`：查询后台会话状态和输出
+  - `action=write`：向后台会话写入 stdin
+  - `action=kill`：结束后台会话
+  - `action=list`：列出当前后台会话
+  - 支持 `cwd`、`timeoutSeconds`、输出截断
+  - 当前 `pty` 参数仅保留接口，尚未真正实现
 
 ## 技术栈
 

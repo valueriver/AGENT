@@ -174,8 +174,21 @@ const handleGetMessages = async (req, res) => {
     const baseId = parts[parts.length - 2];
     const page = parseInt(url.searchParams.get("page")) || 1;
     const limit = parseInt(url.searchParams.get("limit")) || 50;
-    const result = messageOps.get(baseId, page, limit);
+    const order = url.searchParams.get("order") || "asc";
+    const result = messageOps.get(baseId, page, limit, order);
     sendJson(res, 200, { ok: true, ...result });
+  } catch (error) {
+    sendJson(res, 500, { ok: false, error: error.message });
+  }
+};
+
+const handleGetBaseStats = async (req, res) => {
+  try {
+    const url = new URL(req.url || "/", "http://127.0.0.1");
+    const parts = url.pathname.split("/");
+    const baseId = parts[parts.length - 2];
+    const usage = messageOps.getUsageSummary(baseId);
+    sendJson(res, 200, { ok: true, usage });
   } catch (error) {
     sendJson(res, 500, { ok: false, error: error.message });
   }
@@ -230,6 +243,10 @@ const handleRequest = async (req, res, port) => {
   }
   if (req.method === "GET" && url.pathname.match(/^\/api\/bases\/[^/]+\/messages$/)) {
     await handleGetMessages(req, res);
+    return;
+  }
+  if (req.method === "GET" && url.pathname.match(/^\/api\/bases\/[^/]+\/stats$/)) {
+    await handleGetBaseStats(req, res);
     return;
   }
   if (req.method === "GET" && url.pathname === "/api/search") {

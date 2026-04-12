@@ -6,9 +6,15 @@ initDb();
 export const serverConfig = {
   get: () => {
     try {
-      return configOps.get();
+      const cfg = configOps.get();
+      return {
+        apiUrl: cfg.apiUrl || "",
+        apiKey: cfg.apiKey || "",
+        model: cfg.model || "",
+        contextTurns: Number.isInteger(Number(cfg.contextTurns)) ? Number(cfg.contextTurns) : 10,
+      };
     } catch {
-      return { apiUrl: "", apiKey: "", model: "" };
+      return { apiUrl: "", apiKey: "", model: "", contextTurns: 10 };
     }
   },
   set: (cfg) => {
@@ -16,6 +22,7 @@ export const serverConfig = {
       apiUrl: cfg.apiUrl || "",
       apiKey: cfg.apiKey || "",
       model: cfg.model || "",
+      contextTurns: Math.max(0, parseInt(cfg.contextTurns, 10) || 0),
     });
   },
 };
