@@ -1,28 +1,28 @@
-const baseSubscribers = new Map();
+const conversationSubscribers = new Map();
 
-const subscribeBase = (baseDir, res) => {
-  const key = String(baseDir);
-  const set = baseSubscribers.get(key) || new Set();
+const subscribeConversation = (conversationId, res) => {
+  const key = String(conversationId);
+  const set = conversationSubscribers.get(key) || new Set();
   set.add(res);
-  baseSubscribers.set(key, set);
+  conversationSubscribers.set(key, set);
 };
 
-const unsubscribeBase = (baseDir, res) => {
-  const key = String(baseDir);
-  const set = baseSubscribers.get(key);
+const unsubscribeConversation = (conversationId, res) => {
+  const key = String(conversationId);
+  const set = conversationSubscribers.get(key);
   if (!set) return;
   set.delete(res);
   if (set.size === 0) {
-    baseSubscribers.delete(key);
+    conversationSubscribers.delete(key);
   }
 };
 
-const emitBaseEvent = (baseDir, sendSse, event, payload) => {
-  const set = baseSubscribers.get(String(baseDir));
+const emitConversationEvent = (conversationId, sendSse, event, payload) => {
+  const set = conversationSubscribers.get(String(conversationId));
   if (!set) return;
   for (const res of set) {
     sendSse(res, event, payload);
   }
 };
 
-export { emitBaseEvent, subscribeBase, unsubscribeBase };
+export { emitConversationEvent, subscribeConversation, unsubscribeConversation };

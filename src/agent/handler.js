@@ -43,6 +43,7 @@ const chat = async (messages, {
         onEvent({ type: "tool_call", toolCall });
       }
       const toolMessages = await runTools(message.tool_calls, {
+        signal,
         enableToolResultTruncate: opts.enableToolResultTruncate,
         toolResultMaxChars: opts.toolResultMaxChars
       });

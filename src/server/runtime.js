@@ -1,42 +1,51 @@
-import path from "path";
-import { fileURLToPath } from "url";
 import { chat } from "../agent/handler.js";
 import { serverConfig } from "../core/config-server.js";
-import { initDb, messageOps, baseOps } from "../core/db.js";
-import { emitBaseEvent } from "./events.js";
+import { initDb, conversationOps, messageOps } from "../core/db.js";
+import { emitConversationEvent } from "./events.js";
 import { sendSse } from "./http.js";
 
 initDb();
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const APP_DIR = path.resolve(__dirname, "..", "..");
-const BASES_DIR = path.join(APP_DIR, "bases");
-const BASE_INFO_START = "<base_info>";
-const BASE_INFO_END = "</base_info>";
-let activeBaseDir = "";
+const CONVERSATION_INFO_START = "<conversation_info>";
+const CONVERSATION_INFO_END = "</conversation_info>";
+let activeConversationId = "";
+const activeChatControllers = new Map();
 
-const setActiveBaseDir = (baseDir) => {
-  activeBaseDir = baseDir;
+const setActiveConversationId = (conversationId) => {
+  activeConversationId = String(conversationId || "").trim();
 };
 
-const getActiveBaseDir = () => activeBaseDir;
+const getActiveConversationId = () => activeConversationId;
 
-const getBaseIdFromBaseDir = (baseDir) => {
-  const value = String(baseDir || "").trim();
-  const baseName = path.basename(value);
-  if (!/^\d+$/.test(baseName)) {
-    throw new Error(`invalid base id from baseDir: ${baseDir}`);
-  }
-  return baseName;
+const setActiveChatController = (conversationId, controller) => {
+  activeChatControllers.set(String(conversationId), controller);
 };
 
-const resolveBaseDir = (baseDir) => {
-  const value = String(baseDir || "").trim();
-  if (!value) throw new Error("baseDir is required");
-  if (/^\d+$/.test(value)) {
-    return path.join(BASES_DIR, value);
+const clearActiveChatController = (conversationId, controller) => {
+  const key = String(conversationId);
+  const current = activeChatControllers.get(key);
+  if (!current) return;
+  if (!controller || current === controller) {
+    activeChatControllers.delete(key);
   }
-  return path.isAbsolute(value) ? value : path.join(APP_DIR, value);
+};
+
+const stopConversationChat = (conversationId) => {
+  const key = String(conversationId);
+  const controller = activeChatControllers.get(key);
+  if (!controller) {
+    return false;
+  }
+  controller.abort();
+  return true;
+};
+
+const normalizeConversationId = (conversationId) => {
+  const value = String(conversationId || "").trim();
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`invalid conversationId: ${conversationId}`);
+  }
+  return value;
 };
 
 const mergeConfig = (input = {}) => {
@@ -59,10 +68,10 @@ const limitMessagesByTurns = (messages, contextTurns) => {
   let remainingUserTurns = turns;
   let startIndex = 0;
 
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    if (messages[i]?.role === "user") {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role === "user") {
       remainingUserTurns -= 1;
-      startIndex = i;
+      startIndex = index;
       if (remainingUserTurns === 0) {
         break;
       }
@@ -86,24 +95,23 @@ const requireConfig = ({ apiUrl, apiKey, model }) => {
   }
 };
 
-const buildSystemWithBaseInfo = (system, baseDir) => {
-  const baseName = path.basename(baseDir);
+const buildSystemWithConversationInfo = (system, conversationId) => {
   const cleanSystem = String(system || "")
-    .replace(new RegExp(`${BASE_INFO_START}[\\s\\S]*?${BASE_INFO_END}`, "g"), "")
+    .replace(new RegExp(`${CONVERSATION_INFO_START}[\\s\\S]*?${CONVERSATION_INFO_END}`, "g"), "")
     .trim();
 
-  const baseInfo = `${BASE_INFO_START}
-当前 base 信息：
-- baseName: ${baseName}
-- baseDir: ${baseDir}
+  const info = `${CONVERSATION_INFO_START}
+当前会话信息：
+- conversationId: ${conversationId}
 
 工作要求：
 - 当前对话历史保存在数据库中
-- 如果要启动新的 agent，必须使用这个目录模式：${baseDir}/agent/<taskName>/
-- 处理子 agent 结果时，优先读取对应 messages 的最后一条 assistant 消息
-${BASE_INFO_END}`;
+- 创建子任务时优先调用 POST /task
+- 子任务和主会话都只通过 conversationId 关联
+- 处理子任务结果时，优先读取最后一条 assistant 消息
+${CONVERSATION_INFO_END}`;
 
-  return cleanSystem ? `${cleanSystem}\n\n${baseInfo}` : baseInfo;
+  return cleanSystem ? `${cleanSystem}\n\n${info}` : info;
 };
 
 const injectSystemMessage = (messages, system) => {
@@ -122,87 +130,106 @@ const sanitizeTaskName = (taskName) => {
 };
 
 const prepareChatInput = async (body) => {
-  const baseDir = resolveBaseDir(body.baseDir);
-  setActiveBaseDir(baseDir);
+  const conversationId = normalizeConversationId(body.conversationId);
+  setActiveConversationId(conversationId);
   const mergedConfig = mergeConfig(body);
   requireConfig(mergedConfig);
 
-  const runtimeSystem = buildSystemWithBaseInfo(mergedConfig.system, baseDir);
+  const runtimeSystem = buildSystemWithConversationInfo(mergedConfig.system, conversationId);
   let contextMessages = Array.isArray(body.messages)
     ? body.messages
-    : messageOps.get(getBaseIdFromBaseDir(baseDir)).messages;
+    : messageOps.get(conversationId).messages;
 
   contextMessages = limitMessagesByTurns(contextMessages, mergedConfig.contextTurns);
   let messages = injectSystemMessage(contextMessages, runtimeSystem);
   if (body.prompt) {
     messages = [...messages, { role: "user", content: String(body.prompt) }];
   }
+
   return {
-    baseDir,
+    conversationId,
     config: mergedConfig,
     messages,
-    contextMessages
+    contextMessages,
   };
 };
 
-const runBaseChat = async (baseDir, input = {}, onEvent) => {
-  const { config: mergedConfig, messages, contextMessages } = await prepareChatInput({
-    ...input,
-    baseDir
-  });
-  emitBaseEvent(baseDir, sendSse, "start", { ok: true, baseDir });
+const runConversationChat = async (conversationId, input = {}, onEvent) => {
+  const prepared = await prepareChatInput({ ...input, conversationId });
+  const controller = new AbortController();
+  setActiveChatController(conversationId, controller);
+  emitConversationEvent(conversationId, sendSse, "start", { ok: true, conversationId });
 
-  const result = await chat(messages, {
-    ...mergedConfig,
-    onEvent: (event) => {
-      emitBaseEvent(baseDir, sendSse, event.type, event);
-      onEvent?.(event);
+  try {
+    const result = await chat(prepared.messages, {
+      ...prepared.config,
+      signal: controller.signal,
+      onEvent: (event) => {
+        emitConversationEvent(conversationId, sendSse, event.type, event);
+        onEvent?.(event);
+      },
+    });
+
+    const persistedMessages = result.messages
+      .filter((message) => message.role !== "system")
+      .slice(prepared.contextMessages.length);
+
+    if (persistedMessages.length > 0) {
+      messageOps.saveBatch(conversationId, persistedMessages);
     }
-  });
+    conversationOps.update(conversationId);
 
-  // 保存到数据库
-  const baseId = getBaseIdFromBaseDir(baseDir);
-  const persistedMessages = result.messages
-    .filter((message) => message.role !== "system")
-    .slice(contextMessages.length);
-
-  if (persistedMessages.length > 0) {
-    messageOps.saveBatch(baseId, persistedMessages);
+    emitConversationEvent(conversationId, sendSse, "saved", { ok: true, conversationId });
+    emitConversationEvent(conversationId, sendSse, "end", { ok: true, conversationId });
+    return { result, storage: "sqlite" };
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      emitConversationEvent(conversationId, sendSse, "stopped", {
+        ok: true,
+        conversationId,
+      });
+    }
+    throw error;
+  } finally {
+    clearActiveChatController(conversationId, controller);
   }
-  baseOps.update(baseId);
-
-  emitBaseEvent(baseDir, sendSse, "saved", { ok: true, baseDir });
-  emitBaseEvent(baseDir, sendSse, "end", { ok: true, baseDir });
-  return { result, messagesFile: "sqlite" };
 };
 
 const getLastAssistantMessage = (messages) => {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].role === "assistant") return messages[i];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index].role === "assistant") return messages[index];
   }
   return null;
 };
 
-const runTaskInBackground = async ({ parentBaseDir, childBaseDir, taskName, input }) => {
+const runTaskInBackground = async ({ parentConversationId, childConversationId, taskName, input }) => {
   try {
-    const { result } = await runBaseChat(childBaseDir, input);
+    const { result } = await runConversationChat(childConversationId, input);
     const lastAssistant = getLastAssistantMessage(result.messages);
     const summary = lastAssistant?.content || result.text || "";
 
-    messageOps.append(getBaseIdFromBaseDir(parentBaseDir), {
+    messageOps.append(parentConversationId, {
       role: "user",
-      content: `[agent:${taskName}][status:done]\nchildBaseDir: ${childBaseDir}\n${summary}`
+      content: `[agent:${taskName}][status:done]\nchildConversationId: ${childConversationId}\n${summary}`,
     });
-    await runBaseChat(parentBaseDir);
+    await runConversationChat(parentConversationId);
   } catch (error) {
-    messageOps.append(getBaseIdFromBaseDir(parentBaseDir), {
+    messageOps.append(parentConversationId, {
       role: "user",
-      content: `[agent:${taskName}][status:error]\nchildBaseDir: ${childBaseDir}\n${error.message}`
+      content: `[agent:${taskName}][status:error]\nchildConversationId: ${childConversationId}\n${error.message}`,
     });
     try {
-      await runBaseChat(parentBaseDir);
+      await runConversationChat(parentConversationId);
     } catch {}
   }
 };
 
-export { getActiveBaseDir, getBaseIdFromBaseDir, prepareChatInput, resolveBaseDir, runBaseChat, runTaskInBackground, sanitizeTaskName };
+export {
+  getActiveConversationId,
+  normalizeConversationId,
+  prepareChatInput,
+  runConversationChat,
+  runTaskInBackground,
+  sanitizeTaskName,
+  stopConversationChat,
+};

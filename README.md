@@ -22,17 +22,13 @@ npm install
 
 ### 配置
 
-使用环境变量或配置文件：
+模型配置只通过 Web GUI 的设置面板保存到本地数据库：
 
 ```bash
-# 方式1: 环境变量
-export AGENT_API_URL=https://api.openai.com/v1/chat/completions
-export OPENAI_API_KEY=your_api_key
-export AGENT_MODEL=gpt-4.1-mini
-
-# 方式2: 创建 .env 文件
-cp .env.example .env
-# 编辑 .env 填入你的 API 密钥
+# 启动服务后，在界面设置中填写：
+# - API URL
+# - API Key
+# - Model
 ```
 
 ### 开发模式
@@ -67,6 +63,8 @@ npm start
 
 访问 http://localhost:9503
 
+首次启动后，需要先在界面设置中保存模型配置，然后再发起对话。服务不再读取 `.env` 或模型相关环境变量。
+
 ## Docker 部署
 
 ```bash
@@ -83,8 +81,8 @@ open http://localhost:9503
 AGENT/
   package.json
   docker-compose.yml
-  bin/
-    agent.js              # 服务启动脚本
+  data/
+    agent.db              # SQLite 数据库（含 GUI 配置）
   src/
     server/               # 后端服务
       index.js            # HTTP 服务器入口
@@ -99,10 +97,11 @@ AGENT/
       functions.js        # 内置工具 (shell)
       utils.js            # 工具函数
     core/                 # 核心模块
-      config.js           # 配置管理
+      config-server.js    # GUI 配置读写
+      db.js               # SQLite 持久化
       llm.js              # LLM API 调用
       utils.js            # 文件工具
-    web/                  # 前端应用
+    gui/                  # 前端应用
       package.json
       vite.config.js
       src/
@@ -127,17 +126,20 @@ AGENT/
 |------|------|------|
 | GET | `/health` | 健康检查 |
 | POST | `/chat` | 发送聊天消息 |
-| GET | `/base/stream?baseDir=<id>` | SSE 事件流 |
+| GET | `/conversation/stream?conversationId=<id>` | SSE 事件流 |
 | POST | `/task` | 创建子任务 |
 
-### Base 管理
+### 会话管理
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/bases` | 获取所有会话列表 |
-| POST | `/api/bases` | 创建新会话 |
-| DELETE | `/api/bases/<id>` | 删除会话 |
-| GET | `/api/bases/<id>/messages` | 获取会话消息历史 |
+| GET | `/api/conversations` | 获取所有会话列表 |
+| POST | `/api/conversations` | 创建新会话 |
+| DELETE | `/api/conversations/<id>` | 删除会话 |
+| GET | `/api/conversations/<id>/messages` | 获取会话消息历史 |
+| GET | `/api/conversations/<id>/stats` | 获取会话用量统计 |
+| GET | `/api/config` | 获取 GUI 保存的模型配置 |
+| POST | `/api/config` | 保存 GUI 模型配置 |
 
 ## 架构
 
@@ -164,12 +166,12 @@ AGENT/
 └─────────────────────┘
 ```
 
-## Base 与 Task
+## Conversation 与 Task
 
-- 每个 **base** 是一个独立的会话目录
-- 对话历史存储在 `bases/<id>/messages.json`
-- **子任务** 会创建在 `<parentBase>/agent/<taskName>/` 目录下
-- 子任务完成后，结果自动追加回父 base
+- 每个 **conversation** 都由数据库中的一条会话记录表示
+- 对话历史和用量都保存在 SQLite 中
+- **子任务** 会创建独立的子会话，由 `parentConversationId` 关联
+- 子任务完成后，结果自动追加回父会话
 
 ## 内置工具
 
@@ -183,7 +185,7 @@ AGENT/
   - `action=kill`：结束后台会话
   - `action=list`：列出当前后台会话
   - 支持 `cwd`、`timeoutSeconds`、输出截断
-  - 当前 `pty` 参数仅保留接口，尚未真正实现
+  - 当前 `terminal` 参数仅保留接口，尚未真正实现
 
 ## 技术栈
 

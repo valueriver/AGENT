@@ -2,8 +2,8 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "pty_exec",
-      description: "在固定尺寸的 PTY 终端中执行一条命令，并等待结束。",
+      name: "terminal_exec",
+      description: "在固定尺寸的 terminal 会话中执行一条命令，并等待结束。",
       parameters: {
         type: "object",
         properties: {
@@ -25,7 +25,7 @@ const tools = [
           },
           input: {
             type: "string",
-            description: "启动后立即写入 PTY 的输入内容。",
+            description: "启动后立即写入 terminal 的输入内容。",
           },
           maxOutputChars: {
             type: "integer",
@@ -39,8 +39,8 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "pty_start",
-      description: "启动一个可持续读写的 PTY 会话。",
+      name: "terminal_start",
+      description: "启动一个可持续读写的 terminal 会话。",
       parameters: {
         type: "object",
         properties: {
@@ -62,7 +62,7 @@ const tools = [
           },
           input: {
             type: "string",
-            description: "启动后立即写入 PTY 的输入内容。",
+            description: "启动后立即写入 terminal 的输入内容。",
           },
         },
         required: ["command"],
@@ -72,14 +72,14 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "pty_read",
-      description: "读取 PTY 会话的当前输出和状态。",
+      name: "terminal_read",
+      description: "读取 terminal 会话的当前输出和状态。",
       parameters: {
         type: "object",
         properties: {
           sessionId: {
             type: "string",
-            description: "PTY 会话 ID。",
+            description: "terminal 会话 ID。",
           },
           maxOutputChars: {
             type: "integer",
@@ -93,18 +93,18 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "pty_write",
-      description: "向 PTY 会话写入输入。",
+      name: "terminal_write",
+      description: "向 terminal 会话写入输入。",
       parameters: {
         type: "object",
         properties: {
           sessionId: {
             type: "string",
-            description: "PTY 会话 ID。",
+            description: "terminal 会话 ID。",
           },
           input: {
             type: "string",
-            description: "要写入 PTY 的内容。",
+            description: "要写入 terminal 的内容。",
           },
           closeStdin: {
             type: "boolean",
@@ -122,14 +122,14 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "pty_kill",
-      description: "结束一个 PTY 会话并回收它。",
+      name: "terminal_kill",
+      description: "结束一个 terminal 会话并回收它。",
       parameters: {
         type: "object",
         properties: {
           sessionId: {
             type: "string",
-            description: "PTY 会话 ID。",
+            description: "terminal 会话 ID。",
           },
           signal: {
             type: "string",
@@ -147,8 +147,8 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "pty_list",
-      description: "列出当前所有 PTY 会话。",
+      name: "terminal_list",
+      description: "列出当前所有 terminal 会话。",
       parameters: {
         type: "object",
         properties: {

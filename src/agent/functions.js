@@ -1,37 +1,38 @@
 import {
-  shellExec,
-  shellKill,
-  shellListSessions,
-  shellPoll,
-  shellStart,
-  shellWrite,
-} from "./pty/index.js";
+  terminalExec,
+  terminalKill,
+  terminalList,
+  terminalRead,
+  terminalStart,
+  terminalWrite,
+} from "./terminal/index.js";
 
-const pty_exec = async ({
+const terminal_exec = async ({
   command,
   cwd,
   timeoutSeconds,
   env,
   input,
   maxOutputChars,
-} = {}) =>
-  shellExec({
+} = {}, options = {}) =>
+  terminalExec({
     command,
     cwd,
     timeoutSeconds,
     env,
     input,
     maxOutputChars,
+    signal: options.signal,
   });
 
-const pty_start = async ({
+const terminal_start = async ({
   command,
   cwd,
   timeoutSeconds,
   env,
   input,
 } = {}) =>
-  shellStart({
+  terminalStart({
     command,
     cwd,
     timeoutSeconds,
@@ -39,46 +40,46 @@ const pty_start = async ({
     input,
   });
 
-const pty_read = async ({ sessionId, maxOutputChars } = {}) =>
-  shellPoll({
+const terminal_read = async ({ sessionId, maxOutputChars } = {}) =>
+  terminalRead({
     sessionId,
     maxOutputChars,
   });
 
-const pty_write = async ({
+const terminal_write = async ({
   sessionId,
   input,
   maxOutputChars,
   closeStdin = false,
 } = {}) =>
-  shellWrite({
+  terminalWrite({
     sessionId,
     input,
     maxOutputChars,
     closeStdin,
   });
 
-const pty_kill = async ({
+const terminal_kill = async ({
   sessionId,
   signal,
   maxOutputChars,
 } = {}) =>
-  shellKill({
+  terminalKill({
     sessionId,
     signal,
     maxOutputChars,
   });
 
-const pty_list = async ({ maxOutputChars } = {}) =>
-  shellListSessions({
+const terminal_list = async ({ maxOutputChars } = {}) =>
+  terminalList({
     maxOutputChars,
   });
 
 export {
-  pty_exec,
-  pty_kill,
-  pty_list,
-  pty_read,
-  pty_start,
-  pty_write,
+  terminal_exec,
+  terminal_kill,
+  terminal_list,
+  terminal_read,
+  terminal_start,
+  terminal_write,
 };

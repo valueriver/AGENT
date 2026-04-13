@@ -6,11 +6,7 @@ services:
     container_name: agent-web
     ports:
       - "9503:9503"
-    environment:
-      AGENT_API_URL: ${AGENT_API_URL:-}
-      AGENT_API_KEY: ${AGENT_API_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      AGENT_MODEL: ${AGENT_MODEL:-}
     volumes:
+      - ./data:/app/data
       - ./bases:/app/bases
     restart: unless-stopped

@@ -3,18 +3,28 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { parseJson } from "../core/utils.js";
 import { serverConfig } from "../core/config-server.js";
-import { initDb, baseOps, messageOps } from "../core/db.js";
+import { initDb, conversationOps, messageOps } from "../core/db.js";
 import { readBody, openSse, sendJson, sendSse } from "./http.js";
-import { getActiveBaseDir, resolveBaseDir, runBaseChat, runTaskInBackground, sanitizeTaskName } from "./runtime.js";
-import { emitBaseEvent, subscribeBase, unsubscribeBase } from "./events.js";
+import {
+  getActiveConversationId,
+  normalizeConversationId,
+  runConversationChat,
+  runTaskInBackground,
+  sanitizeTaskName,
+  stopConversationChat,
+} from "./runtime.js";
+import {
+  emitConversationEvent,
+  subscribeConversation,
+  unsubscribeConversation,
+} from "./events.js";
 
 initDb();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const WEB_DIST = path.join(__dirname, "../web/dist");
+const WEB_DIST = path.join(__dirname, "../gui/dist");
 
-// ========== 静态文件服务 ==========
 const serveStaticFile = (res, filePath) => {
   const ext = path.extname(filePath);
   const mimeTypes = {
@@ -60,44 +70,60 @@ const handleStatic = async (req, res) => {
   }
 };
 
-// ========== API 路由 ==========
 const handleChat = async (req, res) => {
   const raw = await readBody(req);
   const body = parseJson(raw || "{}", "server.chat.body");
-  const baseDir = resolveBaseDir(body.baseDir);
-  void runBaseChat(baseDir, body).catch((error) => {
-    emitBaseEvent(baseDir, sendSse, "error", { ok: false, baseDir, error: error.message });
+  const conversationId = normalizeConversationId(body.conversationId);
+  void runConversationChat(conversationId, body).catch((error) => {
+    if (error?.name === "AbortError") {
+      return;
+    }
+    emitConversationEvent(conversationId, sendSse, "error", {
+      ok: false,
+      conversationId,
+      error: error.message,
+    });
   });
   sendJson(res, 202, {
     ok: true,
     accepted: true,
-    baseDir,
-    message: "chat started"
+    conversationId,
+    message: "chat started",
   });
 };
 
-const handleBaseStream = async (req, res) => {
+const handleStopChat = async (req, res) => {
+  const raw = await readBody(req);
+  const body = parseJson(raw || "{}", "server.chat.stop.body");
+  const conversationId = normalizeConversationId(body.conversationId);
+  const stopped = stopConversationChat(conversationId);
+  sendJson(res, 200, {
+    ok: true,
+    conversationId,
+    stopped,
+  });
+};
+
+const handleConversationStream = async (req, res) => {
   const url = new URL(req.url || "/", "http://127.0.0.1");
-  const baseDir = resolveBaseDir(url.searchParams.get("baseDir"));
+  const conversationId = normalizeConversationId(url.searchParams.get("conversationId"));
   openSse(res);
-  subscribeBase(baseDir, res);
-  sendSse(res, "connected", { ok: true, baseDir });
+  subscribeConversation(conversationId, res);
+  sendSse(res, "connected", { ok: true, conversationId });
   req.on("close", () => {
-    unsubscribeBase(baseDir, res);
+    unsubscribeConversation(conversationId, res);
   });
 };
 
 const handleTaskCreate = async (req, res) => {
   const raw = await readBody(req);
   const body = parseJson(raw || "{}", "server.task.body");
-  const parentBaseValue = body.parentBaseDir || body.baseDir || getActiveBaseDir();
-  if (!parentBaseValue) {
-    throw new Error("parent base is required");
-  }
-  const parentBaseDir = resolveBaseDir(parentBaseValue);
+  const parentConversationId = normalizeConversationId(
+    body.parentConversationId || body.conversationId || getActiveConversationId()
+  );
   const taskName = sanitizeTaskName(body.name || body.taskName);
-  const childBaseDir = path.join(parentBaseDir, "agent", taskName);
-  fs.mkdirSync(childBaseDir, { recursive: true });
+  const childConversation = conversationOps.create();
+  const childConversationId = childConversation.id;
 
   const detail = String(body.detail || "").trim();
   const initialMessages = Array.isArray(body.messages)
@@ -108,60 +134,59 @@ const handleTaskCreate = async (req, res) => {
   if (initialMessages.length === 0) {
     throw new Error("detail is required");
   }
-  messageOps.saveBatch(taskName, initialMessages);
+  messageOps.saveBatch(childConversationId, initialMessages);
 
   void runTaskInBackground({
-    parentBaseDir,
-    childBaseDir,
+    parentConversationId,
+    childConversationId,
     taskName,
     input: {
-      baseDir: childBaseDir,
+      conversationId: childConversationId,
       messages: initialMessages,
       apiUrl: body.apiUrl,
       apiKey: body.apiKey,
       model: body.model,
-      system: body.system
-    }
+      system: body.system,
+    },
   });
 
   sendJson(res, 202, {
     ok: true,
     accepted: true,
-    parentBaseDir,
+    parentConversationId,
     taskName,
-    childBaseDir,
+    childConversationId,
   });
 };
 
-// ========== Bases API ==========
-const handleGetBases = async (req, res) => {
+const handleGetConversations = async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const page = parseInt(url.searchParams.get("page")) || 1;
     const limit = parseInt(url.searchParams.get("limit")) || 20;
     const search = url.searchParams.get("search") || "";
-    const result = baseOps.list(page, limit, search);
+    const result = conversationOps.list(page, limit, search);
     sendJson(res, 200, { ok: true, ...result });
   } catch (error) {
     sendJson(res, 500, { ok: false, error: error.message });
   }
 };
 
-const handleCreateBase = async (req, res) => {
+const handleCreateConversation = async (req, res) => {
   try {
-    const base = baseOps.create();
-    sendJson(res, 201, { ok: true, base });
+    const conversation = conversationOps.create();
+    sendJson(res, 201, { ok: true, conversation });
   } catch (error) {
     sendJson(res, 500, { ok: false, error: error.message });
   }
 };
 
-const handleDeleteBase = async (req, res) => {
+const handleDeleteConversation = async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://127.0.0.1");
-    const baseId = url.pathname.split("/").pop();
-    baseOps.delete(baseId);
-    sendJson(res, 200, { ok: true, message: `Base ${baseId} deleted` });
+    const conversationId = url.pathname.split("/").pop();
+    conversationOps.delete(conversationId);
+    sendJson(res, 200, { ok: true, message: `Conversation ${conversationId} deleted` });
   } catch (error) {
     sendJson(res, 500, { ok: false, error: error.message });
   }
@@ -171,23 +196,23 @@ const handleGetMessages = async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const parts = url.pathname.split("/");
-    const baseId = parts[parts.length - 2];
+    const conversationId = parts[parts.length - 2];
     const page = parseInt(url.searchParams.get("page")) || 1;
     const limit = parseInt(url.searchParams.get("limit")) || 50;
     const order = url.searchParams.get("order") || "asc";
-    const result = messageOps.get(baseId, page, limit, order);
+    const result = messageOps.get(conversationId, page, limit, order);
     sendJson(res, 200, { ok: true, ...result });
   } catch (error) {
     sendJson(res, 500, { ok: false, error: error.message });
   }
 };
 
-const handleGetBaseStats = async (req, res) => {
+const handleGetConversationStats = async (req, res) => {
   try {
     const url = new URL(req.url || "/", "http://127.0.0.1");
     const parts = url.pathname.split("/");
-    const baseId = parts[parts.length - 2];
-    const usage = messageOps.getUsageSummary(baseId);
+    const conversationId = parts[parts.length - 2];
+    const usage = messageOps.getUsageSummary(conversationId);
     sendJson(res, 200, { ok: true, usage });
   } catch (error) {
     sendJson(res, 500, { ok: false, error: error.message });
@@ -207,7 +232,6 @@ const handleSearch = async (req, res) => {
   }
 };
 
-// ========== 请求路由 ==========
 const handleRequest = async (req, res, port) => {
   const url = new URL(req.url || "/", "http://127.0.0.1");
 
@@ -219,8 +243,12 @@ const handleRequest = async (req, res, port) => {
     await handleChat(req, res);
     return;
   }
-  if (req.method === "GET" && url.pathname === "/base/stream") {
-    await handleBaseStream(req, res);
+  if (req.method === "POST" && url.pathname === "/chat/stop") {
+    await handleStopChat(req, res);
+    return;
+  }
+  if (req.method === "GET" && url.pathname === "/conversation/stream") {
+    await handleConversationStream(req, res);
     return;
   }
   if (req.method === "POST" && url.pathname === "/task") {
@@ -228,25 +256,24 @@ const handleRequest = async (req, res, port) => {
     return;
   }
 
-  // Bases API
-  if (req.method === "GET" && url.pathname === "/api/bases") {
-    await handleGetBases(req, res);
+  if (req.method === "GET" && url.pathname === "/api/conversations") {
+    await handleGetConversations(req, res);
     return;
   }
-  if (req.method === "POST" && url.pathname === "/api/bases") {
-    await handleCreateBase(req, res);
+  if (req.method === "POST" && url.pathname === "/api/conversations") {
+    await handleCreateConversation(req, res);
     return;
   }
-  if (req.method === "DELETE" && url.pathname.startsWith("/api/bases/")) {
-    await handleDeleteBase(req, res);
+  if (req.method === "DELETE" && url.pathname.startsWith("/api/conversations/")) {
+    await handleDeleteConversation(req, res);
     return;
   }
-  if (req.method === "GET" && url.pathname.match(/^\/api\/bases\/[^/]+\/messages$/)) {
+  if (req.method === "GET" && url.pathname.match(/^\/api\/conversations\/[^/]+\/messages$/)) {
     await handleGetMessages(req, res);
     return;
   }
-  if (req.method === "GET" && url.pathname.match(/^\/api\/bases\/[^/]+\/stats$/)) {
-    await handleGetBaseStats(req, res);
+  if (req.method === "GET" && url.pathname.match(/^\/api\/conversations\/[^/]+\/stats$/)) {
+    await handleGetConversationStats(req, res);
     return;
   }
   if (req.method === "GET" && url.pathname === "/api/search") {
@@ -254,7 +281,6 @@ const handleRequest = async (req, res, port) => {
     return;
   }
 
-  // Config API
   if (req.method === "GET" && url.pathname === "/api/config") {
     sendJson(res, 200, { ok: true, config: serverConfig.get() });
     return;
@@ -271,7 +297,6 @@ const handleRequest = async (req, res, port) => {
     return;
   }
 
-  // 静态文件
   await handleStatic(req, res);
 };
 
