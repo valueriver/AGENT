@@ -2,6 +2,7 @@ import { handleConversationsCreatePost } from "./create.js";
 import { handleConversationsDelete } from "./delete.js";
 import { handleConversationsListGet } from "./list.js";
 import { handleConversationsMessagesGet } from "./messages.js";
+import { handleConversationsRecapsGet } from "./recaps.js";
 import { handleConversationsStatsGet } from "./stats.js";
 
 const handleConversationsApi = async (req, res, deps, path, method, url) => {
@@ -29,6 +30,11 @@ const handleConversationsApi = async (req, res, deps, path, method, url) => {
 
   if (method === "GET" && path.match(/^\/api\/conversations\/[^/]+\/stats$/)) {
     await handleConversationsStatsGet(req, res, deps);
+    return;
+  }
+
+  if (method === "GET" && path.match(/^\/api\/conversations\/[^/]+\/recaps$/)) {
+    await handleConversationsRecapsGet(req, res, deps);
     return;
   }
 

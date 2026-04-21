@@ -9,6 +9,7 @@ import {
   appendMessage,
   getConversationUsage,
   listMessages,
+  listRecaps,
   saveMessageBatch,
 } from "../repository/messages.js";
 import { getServerConfig } from "./config.js";
@@ -156,6 +157,7 @@ export {
   getConversationUsage,
   listConversations,
   listMessages,
+  listRecaps,
   normalizeConversationId,
   prepareChatInput,
   runConversationChat,

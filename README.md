@@ -136,12 +136,21 @@ AGENT/
 
 - `GET /health`
 - `POST /api/chats`
-- `POST /api/tasks`
 - `GET /api/conversations`
 - `POST /api/conversations`
 - `DELETE /api/conversations/<id>`
 - `GET /api/conversations/<id>/messages`
 - `GET /api/conversations/<id>/stats`
+- `GET /api/conversations/<id>/recaps`
+- `POST /api/tasks`
+- `GET /api/tasks`
+- `GET /api/tasks/<id>`
+- `POST /api/tasks/<id>/stop`
+- `GET /api/memories`
+- `POST /api/memories`
+- `GET /api/memories/<id>`
+- `PATCH /api/memories/<id>`
+- `DELETE /api/memories/<id>`
 - `GET /api/settings`
 - `POST /api/settings`
 
@@ -152,4 +161,5 @@ AGENT/
 - `server` 只负责系统能力暴露和持久化，不负责前端页面。
 - `cli` 通过同一套 HTTP API 与内核交互，和 agent 自调用保持一致。
 - 历史会话、消息和配置都保存在本地 SQLite 中。
-- `messages` 表按整条 message 对象存储，不拆碎字段。
+- `messages` 表按字段结构化存储（role / content / tool_calls / recap / usage 等）。
+- assistant 回复末尾的 `<recap>...</recap>` 会被抽出到 `recap` 列，作为"对话节点"供应用层按需加载。
