@@ -1,7 +1,12 @@
 import { tools } from "./tools.js";
 import { runTools } from "./runner.js";
 import { callLlmStream } from "./lm/client.js";
-import { extractAnchor, normalizeAgentMessages, normalizeChatOptions } from "./utils.js";
+import {
+  extractAnchor,
+  extractSummary,
+  normalizeAgentMessages,
+  normalizeChatOptions,
+} from "./utils.js";
 
 const chat = async (messages, {
   apiUrl,
@@ -59,10 +64,12 @@ const chat = async (messages, {
 
     const text = message.content ?? "";
     const anchor = extractAnchor(text);
+    const summary = extractSummary(text);
     const replyMsg = {
       role: "assistant",
       content: text,
       ...(anchor ? { anchor } : {}),
+      ...(summary ? { summary } : {}),
       ...(message.usage ? { usage: message.usage } : {})
     };
     workMessages.push(replyMsg);

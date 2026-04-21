@@ -20,7 +20,7 @@ const listConversations = (page = 1, limit = 20, search = "") => {
 
   const rows = searchLike
     ? db.prepare(`
-        SELECT c.id, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
+        SELECT c.id, c.summary, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
         FROM conversations c
         LEFT JOIN messages m ON m.conversation_id = c.id
         WHERE m.message LIKE ?
@@ -29,7 +29,7 @@ const listConversations = (page = 1, limit = 20, search = "") => {
         LIMIT ? OFFSET ?
       `).all(searchLike, limit, offset)
     : db.prepare(`
-        SELECT c.id, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
+        SELECT c.id, c.summary, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
         FROM conversations c
         LEFT JOIN messages m ON m.conversation_id = c.id
         GROUP BY c.id
@@ -48,6 +48,7 @@ const listConversations = (page = 1, limit = 20, search = "") => {
       const preview = typeof content === "string" ? content.slice(0, 50) : "";
       return {
         id: String(row.id),
+        summary: row.summary || "",
         createdAt: row.created_at,
         lastModified: row.updated_at,
         messageCount: row.messageCount,

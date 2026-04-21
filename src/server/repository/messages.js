@@ -78,14 +78,31 @@ const getConversationUsage = (conversationId) => {
   };
 };
 
+const lastSummaryOf = (messages) => {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.summary) return String(messages[i].summary);
+  }
+  return null;
+};
+
+const touchConversationStmt = (db, conversationId, summary) => {
+  if (summary !== null) {
+    db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP, summary = ? WHERE id = ?")
+      .run(summary, Number(conversationId));
+  } else {
+    db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(Number(conversationId));
+  }
+};
+
 const saveMessageBatch = (conversationId, messages) => {
   const db = getDb();
+  const summary = lastSummaryOf(messages);
   const tx = db.transaction((items) => {
     for (const message of items) {
       insertOne(db, conversationId, message);
     }
-    db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .run(Number(conversationId));
+    touchConversationStmt(db, conversationId, summary);
   });
   tx(messages);
 };
@@ -93,8 +110,7 @@ const saveMessageBatch = (conversationId, messages) => {
 const appendMessage = (conversationId, message) => {
   const db = getDb();
   insertOne(db, conversationId, message);
-  db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-    .run(Number(conversationId));
+  touchConversationStmt(db, conversationId, message?.summary ? String(message.summary) : null);
 };
 
 export {

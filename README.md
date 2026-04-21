@@ -162,3 +162,4 @@ AGENT/
 - 历史会话、消息和配置都保存在本地 SQLite 中。
 - `messages` 表的主体是完整的 message JSON blob；`anchor` / `usage` 两列是旁路镜像，便于 SQL 过滤和聚合。
 - assistant 回复末尾的 `<anchor>...</anchor>` 会被抽出到 `anchor` 列，作为"对话锚点"供应用层按需加载。
+- assistant 回复末尾的 `<summary>...</summary>` 会更新 `conversations.summary`（覆盖式），代表整段会话的总结。

@@ -95,11 +95,21 @@ const normalizeAgentMessages = (messages = []) => {
   return out;
 };
 
-const extractAnchor = (text) => {
+const extractLastTag = (text, tag) => {
   if (typeof text !== "string" || !text) return null;
-  const matches = [...text.matchAll(/<anchor>([\s\S]*?)<\/anchor>/g)];
+  const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "g");
+  const matches = [...text.matchAll(regex)];
   if (!matches.length) return null;
   return matches[matches.length - 1][1].trim() || null;
 };
 
-export { extractAnchor, normalizeAgentMessages, normalizeChatOptions, truncateToolResult };
+const extractAnchor = (text) => extractLastTag(text, "anchor");
+const extractSummary = (text) => extractLastTag(text, "summary");
+
+export {
+  extractAnchor,
+  extractSummary,
+  normalizeAgentMessages,
+  normalizeChatOptions,
+  truncateToolResult,
+};
