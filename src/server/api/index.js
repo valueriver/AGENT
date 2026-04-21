@@ -1,6 +1,7 @@
 import { handleChatsApi } from "./chats/index.js";
 import { handleConversationsApi } from "./conversations/index.js";
 import { handleHealthApi } from "./health/index.js";
+import { handleMemoriesApi } from "./memories/index.js";
 import { handleSettingsApi } from "./settings/index.js";
 import { handleTasksApi } from "./tasks/index.js";
 
@@ -22,6 +23,9 @@ const handleApiRequest = async (req, res, deps, context = {}) => {
     }
     if (path.startsWith("/api/conversations")) {
       return handleConversationsApi(req, res, deps, path, method, url, context);
+    }
+    if (path.startsWith("/api/memories")) {
+      return handleMemoriesApi(req, res, deps, path, method, url, context);
     }
     if (path.startsWith("/api/settings")) {
       return handleSettingsApi(req, res, deps, path, method, url, context);

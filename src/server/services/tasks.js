@@ -1,9 +1,19 @@
 import { createConversation } from "../repository/conversations.js";
 import { saveMessageBatch } from "../repository/messages.js";
 import {
+  createTaskRow,
+  getTask,
+  markTaskAborted,
+  markTaskDone,
+  markTaskError,
+  markTaskRunning,
+} from "../repository/tasks.js";
+import {
   appendMessage,
   runConversationChat,
 } from "./conversations.js";
+
+const running = new Map();
 
 const sanitizeTaskName = (taskName) => {
   const value = String(taskName || "").trim();
@@ -13,18 +23,29 @@ const sanitizeTaskName = (taskName) => {
 
 const getLastAssistantMessage = (messages = []) => {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === "assistant") {
-      return messages[index];
-    }
+    if (messages[index]?.role === "assistant") return messages[index];
   }
   return null;
 };
 
-const runTaskInBackground = async ({ parentConversationId, childConversationId, taskName, input }) => {
+const runTaskInBackground = async ({
+  taskId,
+  parentConversationId,
+  childConversationId,
+  taskName,
+  input,
+}) => {
+  const controller = new AbortController();
+  running.set(taskId, controller);
+  markTaskRunning(taskId);
+
   try {
-    const { result } = await runConversationChat(childConversationId, input);
+    const { result } = await runConversationChat(childConversationId, input, {
+      signal: controller.signal,
+    });
     const lastAssistant = getLastAssistantMessage(result.messages);
     const summary = lastAssistant?.content || result.text || "";
+    markTaskDone(taskId, summary);
 
     appendMessage(parentConversationId, {
       role: "user",
@@ -32,6 +53,11 @@ const runTaskInBackground = async ({ parentConversationId, childConversationId, 
     });
     await runConversationChat(parentConversationId);
   } catch (error) {
+    if (error?.name === "AbortError") {
+      markTaskAborted(taskId);
+      return;
+    }
+    markTaskError(taskId, error.message);
     appendMessage(parentConversationId, {
       role: "user",
       content: `[agent:${taskName}][status:error]\nchildConversationId: ${childConversationId}\n${error.message}`,
@@ -41,6 +67,8 @@ const runTaskInBackground = async ({ parentConversationId, childConversationId, 
     } catch {
       // Swallow secondary recovery failures to preserve the original task failure signal.
     }
+  } finally {
+    running.delete(taskId);
   }
 };
 
@@ -59,7 +87,16 @@ const createTask = ({ parentConversationId, taskName, detail, messages, inputOve
 
   saveMessageBatch(childConversationId, initialMessages);
 
+  const promptText = initialMessages.find((m) => m.role === "user")?.content || "";
+  const taskId = createTaskRow({
+    parentConversationId,
+    childConversationId,
+    name: taskName,
+    prompt: String(promptText || ""),
+  });
+
   void runTaskInBackground({
+    taskId,
     parentConversationId,
     childConversationId,
     taskName,
@@ -71,10 +108,23 @@ const createTask = ({ parentConversationId, taskName, detail, messages, inputOve
   });
 
   return {
+    taskId,
     parentConversationId,
     taskName,
     childConversationId,
   };
 };
 
-export { createTask, runTaskInBackground, sanitizeTaskName };
+const abortTask = (taskId) => {
+  const task = getTask(taskId);
+  if (!task) throw new Error(`task ${taskId} not found`);
+  if (task.status === "done" || task.status === "error" || task.status === "aborted") {
+    return task;
+  }
+  const controller = running.get(taskId);
+  if (controller) controller.abort();
+  markTaskAborted(taskId);
+  return getTask(taskId);
+};
+
+export { abortTask, createTask, runTaskInBackground, sanitizeTaskName };

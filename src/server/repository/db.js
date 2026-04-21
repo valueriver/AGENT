@@ -40,7 +40,37 @@ const initDb = () => {
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parent_conversation_id INTEGER,
+      child_conversation_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      prompt TEXT,
+      response TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      error TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      finished_at DATETIME,
+      FOREIGN KEY (parent_conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+      FOREIGN KEY (child_conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL,
+      creator TEXT NOT NULL DEFAULT 'user',
+      pinned INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+    CREATE INDEX IF NOT EXISTS idx_memories_enabled_pinned ON memories(enabled, pinned);
   `);
 
   return db;
