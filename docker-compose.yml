@@ -3,10 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: agent-web
+    container_name: agent-kernel
     ports:
-      - "9503:9503"
+      - "9500:9500"
     volumes:
-      - ./data:/app/data
-      - ./bases:/app/bases
+      - ./src/database:/app/src/database
     restart: unless-stopped

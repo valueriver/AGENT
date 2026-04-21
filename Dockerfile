@@ -9,8 +9,6 @@ COPY index.js ./
 COPY src ./src
 COPY README.md ./
 
-RUN mkdir -p /app/bases
-
-EXPOSE 9503
+EXPOSE 9500
 
 CMD ["node", "index.js"]

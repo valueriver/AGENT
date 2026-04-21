@@ -1,6 +1,6 @@
 import { tools } from "./tools.js";
 import { runTools } from "./runner.js";
-import { callLlmStream } from "../core/llm.js";
+import { callLlmStream } from "./lm/client.js";
 import { normalizeAgentMessages, normalizeChatOptions } from "./utils.js";
 
 const chat = async (messages, {
@@ -37,6 +37,9 @@ const chat = async (messages, {
         tool_calls: message.tool_calls,
         ...(message.usage ? { usage: message.usage } : {})
       };
+      if (typeof message.reasoning_content === "string" && message.reasoning_content.trim()) {
+        assistantMsg.reasoning_content = message.reasoning_content;
+      }
       workMessages.push(assistantMsg);
       onEvent({ type: "assistant_tool_calls", message: assistantMsg, usage: message.usage });
       for (const toolCall of message.tool_calls) {

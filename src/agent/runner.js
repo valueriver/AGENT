@@ -1,4 +1,4 @@
-import * as functions from "./functions.js";
+import * as functions from "./functions/index.js";
 import { truncateToolResult } from "./utils.js";
 
 const createAbortError = () => {
