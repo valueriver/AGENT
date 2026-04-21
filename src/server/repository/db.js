@@ -10,9 +10,7 @@ const DB_DIR = path.dirname(DB_PATH);
 let db;
 
 const initDb = () => {
-  if (db) {
-    return db;
-  }
+  if (db) return db;
 
   fs.mkdirSync(DB_DIR, { recursive: true });
   db = new Database(DB_PATH);
@@ -34,7 +32,13 @@ const initDb = () => {
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       conversation_id INTEGER NOT NULL,
-      message TEXT NOT NULL,
+      role TEXT NOT NULL,
+      content TEXT,
+      tool_calls TEXT,
+      tool_call_id TEXT,
+      reasoning_content TEXT,
+      recap TEXT,
+      usage TEXT,
       meta TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
@@ -68,6 +72,8 @@ const initDb = () => {
     );
 
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
+    CREATE INDEX IF NOT EXISTS idx_messages_recap ON messages(conversation_id) WHERE recap IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_conversation_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_memories_enabled_pinned ON memories(enabled, pinned);
