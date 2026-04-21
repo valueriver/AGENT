@@ -1,4 +1,4 @@
-import { startServer } from "./src/server/index.js";
+import { startServer } from "./server/index.js";
 
 const port = Number(process.env.AGENT_PORT) || 9500;
 

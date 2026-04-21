@@ -6,7 +6,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY index.js ./
-COPY src ./src
+COPY agent ./agent
+COPY cli ./cli
+COPY server ./server
 COPY README.md ./
 
 EXPOSE 9500

@@ -6,9 +6,9 @@
   "scripts": {
     "start": "node ./index.js",
     "dev": "node --watch ./index.js",
-    "cli": "node ./src/cli/index.js repl",
-    "chat": "node ./src/cli/index.js chat",
-    "config": "node ./src/cli/index.js config get"
+    "cli": "node ./cli/index.js repl",
+    "chat": "node ./cli/index.js chat",
+    "config": "node ./cli/index.js config get"
   },
   "dependencies": {
     "better-sqlite3": "^12.8.0",

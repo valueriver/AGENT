@@ -25,7 +25,7 @@ npm start
 查看健康状态：
 
 ```bash
-node src/cli/index.js health
+node cli/index.js health
 ```
 
 进入 CLI 交互：
@@ -43,13 +43,13 @@ npm run chat -- "你好，帮我检查当前目录结构"
 读取当前配置：
 
 ```bash
-node src/cli/index.js config get
+node cli/index.js config get
 ```
 
 写入模型配置：
 
 ```bash
-node src/cli/index.js config set \
+node cli/index.js config set \
   apiUrl=https://api.openai.com/v1/chat/completions \
   apiKey=sk-xxx \
   model=gpt-5.4 \
@@ -60,7 +60,7 @@ node src/cli/index.js config set \
 
 1. `npm install`
 2. `npm start`
-3. `node src/cli/index.js config set apiUrl=... apiKey=... model=...`
+3. `node cli/index.js config set apiUrl=... apiKey=... model=...`
 4. `npm run cli`
 
 ## 安装脚本
@@ -115,22 +115,29 @@ AGENT/
   package.json
   database/
     agent.db
-  src/
-    agent/
-      handler.js
-      lm/
-      runner.js
-      tools.js
-      functions/
-    server/
-      index.js
-      api/
-      repository/
-      services/
-      utils.js
-    cli/
-      index.js
+  agent/
+    handler.js
+    runner.js
+    tools.js
+    utils.js
+    lm/
+    functions/
+  cli/
+    index.js
+  server/
+    index.js
+    utils.js
+    api/
+      anchors/   chats/   conversations/   health/
+      memories/  messages/  settings/  stats/  tasks/
+    repository/
+      db.js
+      config/  conversations/  memories/  messages/  tasks/
+    services/
+      conversations/  settings/  tasks/
 ```
+
+**对称**：`api/` / `repository/` / `services/` 三层同构——每个资源一个目录，目录内一动作一文件，`index.js` 做 barrel 或 router。
 
 ## 关键接口
 
