@@ -99,7 +99,7 @@ docker compose up --build
 容器会：
 
 - 监听 `9500`
-- 把数据库持久化到 `./src/database`
+- 把数据库持久化到 `./database`
 
 健康检查可直接打：
 
@@ -113,9 +113,9 @@ curl http://127.0.0.1:9500/health
 AGENT/
   index.js
   package.json
+  database/
+    agent.db
   src/
-    database/
-      agent.db
     agent/
       handler.js
       lm/
