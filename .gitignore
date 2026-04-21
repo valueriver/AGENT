@@ -7,3 +7,5 @@ data/
 .qwen/
 src/web/dist/
 *.db
+*.db-shm
+*.db-wal

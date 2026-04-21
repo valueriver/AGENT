@@ -56,6 +56,57 @@ node src/cli/index.js config set \
   contextTurns=10
 ```
 
+首次可用性检查：
+
+1. `npm install`
+2. `npm start`
+3. `node src/cli/index.js config set apiUrl=... apiKey=... model=...`
+4. `npm run cli`
+
+## 安装脚本
+
+仓库根目录提供 `install.sh`，会：
+
+- 克隆或更新代码
+- 安装 npm 依赖
+- 写入 `agent` 包装命令
+- 启动本地 server
+
+运行方式：
+
+```bash
+./install.sh
+```
+
+安装完成后可直接使用：
+
+```bash
+agent
+agent chat "你好"
+agent config get
+```
+
+默认 server 地址仍然是 `http://127.0.0.1:9500`。
+
+## Docker
+
+构建并启动：
+
+```bash
+docker compose up --build
+```
+
+容器会：
+
+- 监听 `9500`
+- 把数据库持久化到 `./src/database`
+
+健康检查可直接打：
+
+```bash
+curl http://127.0.0.1:9500/health
+```
+
 ## 项目结构
 
 ```text
@@ -96,7 +147,9 @@ AGENT/
 
 ## 设计说明
 
+- `POST /api/chat` 直接返回 SSE，不再拆分 `stream` / `stop` 接口。
 - `agent` 仍然保留多任务能力，子任务通过本地 HTTP `POST /api/task` 创建。
 - `server` 只负责系统能力暴露和持久化，不负责前端页面。
 - `cli` 通过同一套 HTTP API 与内核交互，和 agent 自调用保持一致。
 - 历史会话、消息和配置都保存在本地 SQLite 中。
+- `messages` 表按整条 message 对象存储，不拆碎字段。

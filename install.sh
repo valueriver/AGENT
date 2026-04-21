@@ -187,7 +187,17 @@ if [[ -f "$CONFIG_FILE" ]]; then
   . "$CONFIG_FILE"
   set +a
 fi
-exec node "$INSTALL_ROOT/bin/agent.js" "\$@"
+SERVER_URL="\${AGENT_SERVER_URL:-http://$SERVER_HOST:$SERVER_PORT}"
+if ! curl -fsS "\$SERVER_URL/health" >/dev/null 2>&1; then
+  nohup node "$INSTALL_ROOT/index.js" >"$SERVER_LOG" 2>&1 &
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    sleep 1
+    if curl -fsS "\$SERVER_URL/health" >/dev/null 2>&1; then
+      break
+    fi
+  done
+fi
+exec node "$INSTALL_ROOT/src/cli/index.js" "\$@"
 EOF
   chmod +x "$WRAPPER_PATH"
 }
@@ -218,7 +228,7 @@ start_server() {
 
   log "starting local agent server"
   mkdir -p "$(dirname "$SERVER_LOG")"
-  nohup node "$INSTALL_ROOT/src/server/index.js" >"$SERVER_LOG" 2>&1 &
+  nohup node "$INSTALL_ROOT/index.js" >"$SERVER_LOG" 2>&1 &
 
   for _ in 1 2 3 4 5 6 7 8 9 10; do
     sleep 1
@@ -241,9 +251,9 @@ print_usage() {
   printf 'Server: http://%s:%s\n' "$SERVER_HOST" "$SERVER_PORT"
   printf '\n'
   printf 'Next:\n'
-  printf '  agent --config https://api.openai.com/v1/chat/completions YOUR_API_KEY gpt-4.1-mini\n'
-  printf '  agent --help\n'
+  printf '  agent config set apiUrl=https://api.openai.com/v1/chat/completions apiKey=YOUR_API_KEY model=gpt-5.4\n'
   printf '  agent\n'
+  printf '  agent chat "你好"\n'
   printf '\n'
   printf 'Tip:\n'
   printf '  the local server is already started by install.sh\n'
