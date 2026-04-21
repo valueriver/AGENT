@@ -73,8 +73,6 @@ const runTaskInBackground = async ({
 };
 
 const createTask = ({ parentConversationId, taskName, detail, messages, inputOverrides = {} }) => {
-  const childConversation = createConversation();
-  const childConversationId = childConversation.id;
   const initialMessages = Array.isArray(messages)
     ? messages
     : String(detail || "").trim()
@@ -85,9 +83,12 @@ const createTask = ({ parentConversationId, taskName, detail, messages, inputOve
     throw new Error("detail is required");
   }
 
-  saveMessageBatch(childConversationId, initialMessages);
-
   const promptText = initialMessages.find((m) => m.role === "user")?.content || "";
+  const childTitle = String(promptText).trim().slice(0, 20) || taskName;
+  const childConversation = createConversation(childTitle);
+  const childConversationId = childConversation.id;
+
+  saveMessageBatch(childConversationId, initialMessages);
   const taskId = createTaskRow({
     parentConversationId,
     childConversationId,

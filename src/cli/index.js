@@ -58,8 +58,14 @@ const ensureServer = async () => {
   }
 };
 
-const createConversation = async () => {
-  const res = await request("/api/conversations", { method: "POST" });
+const titleFromPrompt = (prompt) => String(prompt || "").trim().slice(0, 20) || "untitled";
+
+const createConversation = async (title) => {
+  const res = await request("/api/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
   return res.conversation?.id;
 };
 
@@ -175,15 +181,14 @@ const commandChat = async (args) => {
   if (!prompt) {
     throw new Error("chat message is required");
   }
-  const conversationId = await createConversation();
+  const conversationId = await createConversation(titleFromPrompt(prompt));
   process.stdout.write(`conversation ${conversationId}\n`);
   await runChatTurn(conversationId, prompt);
 };
 
 const commandRepl = async () => {
-  const conversationId = await createConversation();
-  process.stdout.write(`conversation ${conversationId}\n`);
   process.stdout.write("输入消息开始对话，输入 /exit 退出。\n");
+  let conversationId = null;
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -205,6 +210,10 @@ const commandRepl = async () => {
 
     rl.pause();
     try {
+      if (!conversationId) {
+        conversationId = await createConversation(titleFromPrompt(input));
+        process.stdout.write(`conversation ${conversationId}\n`);
+      }
       await runChatTurn(conversationId, input);
     } catch (error) {
       process.stderr.write(`error: ${error.message}\n`);

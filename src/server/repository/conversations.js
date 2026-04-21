@@ -20,7 +20,7 @@ const listConversations = (page = 1, limit = 20, search = "") => {
 
   const rows = searchLike
     ? db.prepare(`
-        SELECT c.id, c.summary, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
+        SELECT c.id, c.title, c.summary, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
         FROM conversations c
         LEFT JOIN messages m ON m.conversation_id = c.id
         WHERE m.message LIKE ?
@@ -29,7 +29,7 @@ const listConversations = (page = 1, limit = 20, search = "") => {
         LIMIT ? OFFSET ?
       `).all(searchLike, limit, offset)
     : db.prepare(`
-        SELECT c.id, c.summary, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
+        SELECT c.id, c.title, c.summary, c.created_at, c.updated_at, COUNT(m.id) AS messageCount
         FROM conversations c
         LEFT JOIN messages m ON m.conversation_id = c.id
         GROUP BY c.id
@@ -48,6 +48,7 @@ const listConversations = (page = 1, limit = 20, search = "") => {
       const preview = typeof content === "string" ? content.slice(0, 50) : "";
       return {
         id: String(row.id),
+        title: row.title || "",
         summary: row.summary || "",
         createdAt: row.created_at,
         lastModified: row.updated_at,
@@ -62,11 +63,17 @@ const listConversations = (page = 1, limit = 20, search = "") => {
   };
 };
 
-const createConversation = () => {
+const createConversation = (title) => {
+  const trimmed = String(title || "").trim();
+  if (!trimmed) throw new Error("title is required");
   const db = getDb();
-  const result = db.prepare("INSERT INTO conversations DEFAULT VALUES").run();
-  return { id: String(result.lastInsertRowid) };
+  const result = db.prepare("INSERT INTO conversations (title) VALUES (?)").run(trimmed);
+  return { id: String(result.lastInsertRowid), title: trimmed };
 };
+
+const getConversation = (conversationId) =>
+  getDb().prepare("SELECT id, title, summary, created_at, updated_at FROM conversations WHERE id = ?")
+    .get(Number(conversationId)) || null;
 
 const deleteConversation = (conversationId) => {
   const db = getDb();
@@ -83,6 +90,7 @@ const touchConversation = (conversationId) => {
 export {
   createConversation,
   deleteConversation,
+  getConversation,
   listConversations,
   touchConversation,
 };

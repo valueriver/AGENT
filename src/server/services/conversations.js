@@ -2,6 +2,7 @@ import { chat } from "../../agent/handler.js";
 import {
   createConversation,
   deleteConversation,
+  getConversation,
   listConversations,
   touchConversation,
 } from "../repository/conversations.js";
@@ -9,6 +10,7 @@ import {
   appendMessage,
   getConversationUsage,
   listAnchors,
+  listAnchorsBefore,
   listMessages,
   saveMessageBatch,
 } from "../repository/messages.js";
@@ -87,6 +89,31 @@ const injectSystemMessage = (messages, system) => {
   return [{ role: "system", content: system }, ...next];
 };
 
+const buildConversationContext = (conversationId, contextMessages) => {
+  const conv = getConversation(conversationId);
+  if (!conv) return "";
+  const boundaryId = contextMessages
+    .map((m) => m._id)
+    .filter((id) => Number.isFinite(id))
+    .reduce((min, id) => (min === null || id < min ? id : min), null);
+  const outOfContextAnchors = boundaryId
+    ? listAnchorsBefore(conversationId, boundaryId, 30)
+    : [];
+
+  const lines = ["<conversation>"];
+  lines.push(`title: ${conv.title || ""}`);
+  lines.push(`summary: ${conv.summary || ""}`);
+  if (outOfContextAnchors.length) {
+    lines.push("");
+    lines.push(`anchors (out of context window, newest-first, up to 30):`);
+    for (const a of outOfContextAnchors) {
+      lines.push(`- [#${a.id}] ${a.anchor}`);
+    }
+  }
+  lines.push("</conversation>");
+  return lines.join("\n");
+};
+
 const prepareChatInput = async (body) => {
   const conversationId = normalizeConversationId(body.conversationId);
   setActiveConversationId(conversationId);
@@ -98,7 +125,11 @@ const prepareChatInput = async (body) => {
     : listMessages(conversationId).messages;
 
   contextMessages = limitMessagesByTurns(contextMessages, mergedConfig.contextTurns);
-  let messages = injectSystemMessage(contextMessages, mergedConfig.system);
+
+  const convContext = buildConversationContext(conversationId, contextMessages);
+  const fullSystem = [mergedConfig.system, convContext].filter(Boolean).join("\n\n");
+
+  let messages = injectSystemMessage(contextMessages, fullSystem);
   if (body.prompt) {
     messages = [...messages, { role: "user", content: String(body.prompt) }];
   }
@@ -154,6 +185,7 @@ export {
   createConversation,
   deleteConversation,
   getActiveConversationId,
+  getConversation,
   getConversationUsage,
   listAnchors,
   listConversations,
