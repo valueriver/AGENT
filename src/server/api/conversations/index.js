@@ -1,43 +1,25 @@
-import { handleConversationsCreatePost } from "./create.js";
 import { handleConversationsDelete } from "./delete.js";
-import { handleConversationsListGet } from "./list.js";
-import { handleConversationsMessagesGet } from "./messages.js";
-import { handleConversationsRecapsGet } from "./recaps.js";
-import { handleConversationsStatsGet } from "./stats.js";
+import { handleConversationsGet } from "./get.js";
+import { handleConversationsPost } from "./post.js";
 
 const handleConversationsApi = async (req, res, deps, path, method, url) => {
   const { sendJson } = deps;
-
-  if (path === "/api/conversations" && method === "GET") {
-    await handleConversationsListGet(req, res, deps);
+  if (path !== "/api/conversations") {
+    sendJson(res, 404, { ok: false, error: "Not found" });
     return;
   }
-
-  if (path === "/api/conversations" && method === "POST") {
-    await handleConversationsCreatePost(req, res, deps);
+  if (method === "GET") {
+    await handleConversationsGet(req, res, deps, url);
     return;
   }
-
-  if (method === "DELETE" && path.startsWith("/api/conversations/")) {
-    await handleConversationsDelete(req, res, deps);
+  if (method === "POST") {
+    await handleConversationsPost(req, res, deps);
     return;
   }
-
-  if (method === "GET" && path.match(/^\/api\/conversations\/[^/]+\/messages$/)) {
-    await handleConversationsMessagesGet(req, res, deps);
+  if (method === "DELETE") {
+    await handleConversationsDelete(req, res, deps, url);
     return;
   }
-
-  if (method === "GET" && path.match(/^\/api\/conversations\/[^/]+\/stats$/)) {
-    await handleConversationsStatsGet(req, res, deps);
-    return;
-  }
-
-  if (method === "GET" && path.match(/^\/api\/conversations\/[^/]+\/recaps$/)) {
-    await handleConversationsRecapsGet(req, res, deps);
-    return;
-  }
-
   sendJson(res, 404, { ok: false, error: "Not found" });
 };
 

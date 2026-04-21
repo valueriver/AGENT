@@ -32,11 +32,7 @@ const initDb = () => {
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       conversation_id INTEGER NOT NULL,
-      role TEXT NOT NULL,
-      content TEXT,
-      tool_calls TEXT,
-      tool_call_id TEXT,
-      reasoning_content TEXT,
+      message TEXT NOT NULL,
       recap TEXT,
       usage TEXT,
       meta TEXT,
@@ -72,7 +68,6 @@ const initDb = () => {
     );
 
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_role ON messages(role);
     CREATE INDEX IF NOT EXISTS idx_messages_recap ON messages(conversation_id) WHERE recap IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_conversation_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);

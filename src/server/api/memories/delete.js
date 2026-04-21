@@ -1,6 +1,11 @@
 import { deleteMemory, getMemory } from "../../repository/memories.js";
 
-const handleMemoryDelete = async (_req, res, { sendJson }, id) => {
+const handleMemoriesDelete = async (_req, res, { sendJson }, url) => {
+  const id = url.searchParams.get("id");
+  if (!id) {
+    sendJson(res, 400, { ok: false, error: "id is required" });
+    return;
+  }
   if (!getMemory(id)) {
     sendJson(res, 404, { ok: false, error: "memory not found" });
     return;
@@ -9,4 +14,4 @@ const handleMemoryDelete = async (_req, res, { sendJson }, id) => {
   sendJson(res, 200, { ok: true });
 };
 
-export { handleMemoryDelete };
+export { handleMemoriesDelete };

@@ -2,46 +2,23 @@ import { getDb, initDb } from "./db.js";
 
 initDb();
 
-const toRow = (message) => {
-  const role = String(message?.role || "").trim();
-  if (!role) throw new Error("message.role is required");
-  const content = message?.content === null || message?.content === undefined
-    ? null
-    : String(message.content);
-  return {
-    role,
-    content,
-    tool_calls: Array.isArray(message?.tool_calls) && message.tool_calls.length
-      ? JSON.stringify(message.tool_calls)
-      : null,
-    tool_call_id: message?.tool_call_id ? String(message.tool_call_id) : null,
-    reasoning_content: message?.reasoning_content ? String(message.reasoning_content) : null,
-    recap: message?.recap ? String(message.recap) : null,
-    usage: message?.usage ? JSON.stringify(message.usage) : null,
-    meta: message?.meta ? JSON.stringify(message.meta) : null,
-  };
-};
-
-const fromRow = (row) => {
-  const message = { role: row.role };
-  if (row.content !== null) message.content = row.content;
-  if (row.tool_calls) message.tool_calls = JSON.parse(row.tool_calls);
-  if (row.tool_call_id) message.tool_call_id = row.tool_call_id;
-  if (row.reasoning_content) message.reasoning_content = row.reasoning_content;
-  if (row.usage) message.usage = JSON.parse(row.usage);
-  message._id = row.id;
-  if (row.recap) message._recap = row.recap;
-  if (row.meta) message._meta = JSON.parse(row.meta);
-  return message;
-};
-
 const INSERT_SQL = `
-  INSERT INTO messages
-    (conversation_id, role, content, tool_calls, tool_call_id, reasoning_content, recap, usage, meta)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO messages (conversation_id, message, recap, usage, meta)
+  VALUES (?, ?, ?, ?, ?)
 `;
 
-const SELECT_COLUMNS = "id, role, content, tool_calls, tool_call_id, reasoning_content, recap, usage, meta";
+const insertOne = (db, conversationId, message) => {
+  const recap = message?.recap ? String(message.recap) : null;
+  const usage = message?.usage ? JSON.stringify(message.usage) : null;
+  const meta = message?.meta ? JSON.stringify(message.meta) : null;
+  db.prepare(INSERT_SQL).run(
+    Number(conversationId),
+    JSON.stringify(message),
+    recap,
+    usage,
+    meta
+  );
+};
 
 const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
   const db = getDb();
@@ -53,7 +30,7 @@ const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
   ) || 0;
 
   const rows = db.prepare(`
-    SELECT ${SELECT_COLUMNS}
+    SELECT id, message, recap, usage, meta
     FROM messages
     WHERE conversation_id = ?
     ORDER BY id ${normalizedOrder}
@@ -61,7 +38,12 @@ const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
   `).all(Number(conversationId), limit, offset);
 
   return {
-    messages: rows.map(fromRow),
+    messages: rows.map((row) => ({
+      ...JSON.parse(row.message),
+      _id: row.id,
+      ...(row.recap ? { _recap: row.recap } : {}),
+      ...(row.meta ? { _meta: JSON.parse(row.meta) } : {}),
+    })),
     total,
     page,
     limit,
@@ -69,14 +51,12 @@ const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
   };
 };
 
-const listRecaps = (conversationId) => {
-  const rows = getDb().prepare(`
+const listRecaps = (conversationId) =>
+  getDb().prepare(`
     SELECT id, recap, created_at FROM messages
     WHERE conversation_id = ? AND recap IS NOT NULL
     ORDER BY id ASC
   `).all(Number(conversationId));
-  return rows;
-};
 
 const getConversationUsage = (conversationId) => {
   const row = getDb().prepare(`
@@ -100,21 +80,9 @@ const getConversationUsage = (conversationId) => {
 
 const saveMessageBatch = (conversationId, messages) => {
   const db = getDb();
-  const insert = db.prepare(INSERT_SQL);
   const tx = db.transaction((items) => {
     for (const message of items) {
-      const row = toRow(message);
-      insert.run(
-        Number(conversationId),
-        row.role,
-        row.content,
-        row.tool_calls,
-        row.tool_call_id,
-        row.reasoning_content,
-        row.recap,
-        row.usage,
-        row.meta
-      );
+      insertOne(db, conversationId, message);
     }
     db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
       .run(Number(conversationId));
@@ -124,18 +92,7 @@ const saveMessageBatch = (conversationId, messages) => {
 
 const appendMessage = (conversationId, message) => {
   const db = getDb();
-  const row = toRow(message);
-  db.prepare(INSERT_SQL).run(
-    Number(conversationId),
-    row.role,
-    row.content,
-    row.tool_calls,
-    row.tool_call_id,
-    row.reasoning_content,
-    row.recap,
-    row.usage,
-    row.meta
-  );
+  insertOne(db, conversationId, message);
   db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
     .run(Number(conversationId));
 };

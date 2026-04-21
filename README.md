@@ -135,29 +135,28 @@ AGENT/
 ## 关键接口
 
 - `GET /health`
-- `POST /api/chats`
+- `POST /api/chats` — body 带 `conversationId`
 - `GET /api/conversations`
 - `POST /api/conversations`
-- `DELETE /api/conversations/<id>`
-- `GET /api/conversations/<id>/messages`
-- `GET /api/conversations/<id>/stats`
-- `GET /api/conversations/<id>/recaps`
+- `DELETE /api/conversations?id=N`
+- `GET /api/messages?conversationId=N`
+- `GET /api/recaps?conversationId=N`
+- `GET /api/stats?conversationId=N`
 - `POST /api/tasks`
-- `GET /api/tasks`
-- `GET /api/tasks/<id>`
-- `POST /api/tasks/<id>/stop`
-- `GET /api/memories`
+- `GET /api/tasks` — `?id=N` 返单个，否则列表（支持 `?conversationId=`）
+- `PATCH /api/tasks?id=N` — body `{"status":"aborted"}` 终止任务
 - `POST /api/memories`
-- `GET /api/memories/<id>`
-- `PATCH /api/memories/<id>`
-- `DELETE /api/memories/<id>`
+- `GET /api/memories` — `?id=N` 返单个，否则列表（支持 `?enabled=` / `?pinned=` / `?creator=`）
+- `PATCH /api/memories?id=N`
+- `DELETE /api/memories?id=N`
 - `GET /api/settings`
 - `POST /api/settings`
 
 ## 设计说明
 
 - `POST /api/chats` 直接返回 SSE，不再拆分 `stream` / `stop` 接口。
-- `agent` 仍然保留多任务能力，子任务通过本地 HTTP `POST /api/tasks` 创建。
+- `agent` 仍然保留多任务能力，子任务通过本地 HTTP `POST /api/tasks` 创建；终止用 `PATCH /api/tasks?id=N`。
+- 路由风格：**无 regex、无路径参数**，一个资源一个路径，方法 + query param 区分动作。
 - `server` 只负责系统能力暴露和持久化，不负责前端页面。
 - `cli` 通过同一套 HTTP API 与内核交互，和 agent 自调用保持一致。
 - 历史会话、消息和配置都保存在本地 SQLite 中。

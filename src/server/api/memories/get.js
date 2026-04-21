@@ -1,12 +1,21 @@
-import { getMemory } from "../../repository/memories.js";
+import { getMemory, listMemories } from "../../repository/memories.js";
 
-const handleMemoryGet = async (_req, res, { sendJson }, id) => {
-  const memory = getMemory(id);
-  if (!memory) {
-    sendJson(res, 404, { ok: false, error: "memory not found" });
+const handleMemoriesGet = async (_req, res, { sendJson }, url) => {
+  const id = url.searchParams.get("id");
+  if (id) {
+    const memory = getMemory(id);
+    if (!memory) {
+      sendJson(res, 404, { ok: false, error: "memory not found" });
+      return;
+    }
+    sendJson(res, 200, { ok: true, memory });
     return;
   }
-  sendJson(res, 200, { ok: true, memory });
+  const enabled = url.searchParams.get("enabled");
+  const pinned = url.searchParams.get("pinned");
+  const creator = url.searchParams.get("creator");
+  const memories = listMemories({ enabled, pinned, creator });
+  sendJson(res, 200, { ok: true, memories });
 };
 
-export { handleMemoryGet };
+export { handleMemoriesGet };

@@ -1,19 +1,20 @@
-import { handleGetSettings } from "./get.js";
-import { handleSetSettings } from "./set.js";
+import { handleSettingsGet } from "./get.js";
+import { handleSettingsPost } from "./post.js";
 
-const handleSettingsApi = async (req, res, deps, path, method, url) => {
+const handleSettingsApi = async (req, res, deps, path, method) => {
   const { sendJson } = deps;
-
-  if (path === "/api/settings" && method === "GET") {
-    await handleGetSettings(req, res, deps);
+  if (path !== "/api/settings") {
+    sendJson(res, 404, { ok: false, error: "Not found" });
     return;
   }
-
-  if (path === "/api/settings" && method === "POST") {
-    await handleSetSettings(req, res, deps);
+  if (method === "GET") {
+    await handleSettingsGet(req, res, deps);
     return;
   }
-
+  if (method === "POST") {
+    await handleSettingsPost(req, res, deps);
+    return;
+  }
   sendJson(res, 404, { ok: false, error: "Not found" });
 };
 
