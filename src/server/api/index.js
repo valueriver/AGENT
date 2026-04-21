@@ -1,19 +1,19 @@
+import { handleAnchorsApi } from "./anchors/index.js";
 import { handleChatsApi } from "./chats/index.js";
 import { handleConversationsApi } from "./conversations/index.js";
 import { handleHealthApi } from "./health/index.js";
 import { handleMemoriesApi } from "./memories/index.js";
 import { handleMessagesApi } from "./messages/index.js";
-import { handleRecapsApi } from "./recaps/index.js";
 import { handleSettingsApi } from "./settings/index.js";
 import { handleStatsApi } from "./stats/index.js";
 import { handleTasksApi } from "./tasks/index.js";
 
 const ROUTES = [
+  { prefix: "/api/anchors", handler: handleAnchorsApi },
   { prefix: "/api/chats", handler: handleChatsApi },
   { prefix: "/api/conversations", handler: handleConversationsApi },
   { prefix: "/api/memories", handler: handleMemoriesApi },
   { prefix: "/api/messages", handler: handleMessagesApi },
-  { prefix: "/api/recaps", handler: handleRecapsApi },
   { prefix: "/api/settings", handler: handleSettingsApi },
   { prefix: "/api/stats", handler: handleStatsApi },
   { prefix: "/api/tasks", handler: handleTasksApi },

@@ -8,8 +8,8 @@ import {
 import {
   appendMessage,
   getConversationUsage,
+  listAnchors,
   listMessages,
-  listRecaps,
   saveMessageBatch,
 } from "../repository/messages.js";
 import { getServerConfig } from "./config.js";
@@ -155,9 +155,9 @@ export {
   deleteConversation,
   getActiveConversationId,
   getConversationUsage,
+  listAnchors,
   listConversations,
   listMessages,
-  listRecaps,
   normalizeConversationId,
   prepareChatInput,
   runConversationChat,

@@ -95,11 +95,11 @@ const normalizeAgentMessages = (messages = []) => {
   return out;
 };
 
-const extractRecap = (text) => {
+const extractAnchor = (text) => {
   if (typeof text !== "string" || !text) return null;
-  const matches = [...text.matchAll(/<recap>([\s\S]*?)<\/recap>/g)];
+  const matches = [...text.matchAll(/<anchor>([\s\S]*?)<\/anchor>/g)];
   if (!matches.length) return null;
   return matches[matches.length - 1][1].trim() || null;
 };
 
-export { extractRecap, normalizeAgentMessages, normalizeChatOptions, truncateToolResult };
+export { extractAnchor, normalizeAgentMessages, normalizeChatOptions, truncateToolResult };

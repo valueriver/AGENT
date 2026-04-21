@@ -140,7 +140,7 @@ AGENT/
 - `POST /api/conversations`
 - `DELETE /api/conversations?id=N`
 - `GET /api/messages?conversationId=N`
-- `GET /api/recaps?conversationId=N`
+- `GET /api/anchors?conversationId=N`
 - `GET /api/stats?conversationId=N`
 - `POST /api/tasks`
 - `GET /api/tasks` — `?id=N` 返单个，否则列表（支持 `?conversationId=`）
@@ -160,5 +160,5 @@ AGENT/
 - `server` 只负责系统能力暴露和持久化，不负责前端页面。
 - `cli` 通过同一套 HTTP API 与内核交互，和 agent 自调用保持一致。
 - 历史会话、消息和配置都保存在本地 SQLite 中。
-- `messages` 表按字段结构化存储（role / content / tool_calls / recap / usage 等）。
-- assistant 回复末尾的 `<recap>...</recap>` 会被抽出到 `recap` 列，作为"对话节点"供应用层按需加载。
+- `messages` 表的主体是完整的 message JSON blob；`anchor` / `usage` 两列是旁路镜像，便于 SQL 过滤和聚合。
+- assistant 回复末尾的 `<anchor>...</anchor>` 会被抽出到 `anchor` 列，作为"对话锚点"供应用层按需加载。

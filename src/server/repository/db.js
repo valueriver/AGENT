@@ -33,7 +33,7 @@ const initDb = () => {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       conversation_id INTEGER NOT NULL,
       message TEXT NOT NULL,
-      recap TEXT,
+      anchor TEXT,
       usage TEXT,
       meta TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -68,7 +68,7 @@ const initDb = () => {
     );
 
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_recap ON messages(conversation_id) WHERE recap IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_messages_anchor ON messages(conversation_id) WHERE anchor IS NOT NULL;
     CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_conversation_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
     CREATE INDEX IF NOT EXISTS idx_memories_enabled_pinned ON memories(enabled, pinned);

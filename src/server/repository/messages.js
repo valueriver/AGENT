@@ -3,18 +3,18 @@ import { getDb, initDb } from "./db.js";
 initDb();
 
 const INSERT_SQL = `
-  INSERT INTO messages (conversation_id, message, recap, usage, meta)
+  INSERT INTO messages (conversation_id, message, anchor, usage, meta)
   VALUES (?, ?, ?, ?, ?)
 `;
 
 const insertOne = (db, conversationId, message) => {
-  const recap = message?.recap ? String(message.recap) : null;
+  const anchor = message?.anchor ? String(message.anchor) : null;
   const usage = message?.usage ? JSON.stringify(message.usage) : null;
   const meta = message?.meta ? JSON.stringify(message.meta) : null;
   db.prepare(INSERT_SQL).run(
     Number(conversationId),
     JSON.stringify(message),
-    recap,
+    anchor,
     usage,
     meta
   );
@@ -30,7 +30,7 @@ const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
   ) || 0;
 
   const rows = db.prepare(`
-    SELECT id, message, recap, usage, meta
+    SELECT id, message, anchor, usage, meta
     FROM messages
     WHERE conversation_id = ?
     ORDER BY id ${normalizedOrder}
@@ -41,7 +41,7 @@ const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
     messages: rows.map((row) => ({
       ...JSON.parse(row.message),
       _id: row.id,
-      ...(row.recap ? { _recap: row.recap } : {}),
+      ...(row.anchor ? { _anchor: row.anchor } : {}),
       ...(row.meta ? { _meta: JSON.parse(row.meta) } : {}),
     })),
     total,
@@ -51,10 +51,10 @@ const listMessages = (conversationId, page = 1, limit = 50, order = "asc") => {
   };
 };
 
-const listRecaps = (conversationId) =>
+const listAnchors = (conversationId) =>
   getDb().prepare(`
-    SELECT id, recap, created_at FROM messages
-    WHERE conversation_id = ? AND recap IS NOT NULL
+    SELECT id, anchor, created_at FROM messages
+    WHERE conversation_id = ? AND anchor IS NOT NULL
     ORDER BY id ASC
   `).all(Number(conversationId));
 
@@ -100,7 +100,7 @@ const appendMessage = (conversationId, message) => {
 export {
   appendMessage,
   getConversationUsage,
+  listAnchors,
   listMessages,
-  listRecaps,
   saveMessageBatch,
 };
