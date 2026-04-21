@@ -1,9 +1,9 @@
 import { handleTaskPost } from "./post.js";
 
-const handleTaskApi = async (req, res, deps, path, method, url) => {
+const handleTasksApi = async (req, res, deps, path, method, url) => {
   const { sendJson } = deps;
 
-  if (path === "/api/task" && method === "POST") {
+  if (path === "/api/tasks" && method === "POST") {
     await handleTaskPost(req, res, deps);
     return;
   }
@@ -11,4 +11,4 @@ const handleTaskApi = async (req, res, deps, path, method, url) => {
   sendJson(res, 404, { ok: false, error: "Not found" });
 };
 
-export { handleTaskApi };
+export { handleTasksApi };

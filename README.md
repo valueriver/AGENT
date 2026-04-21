@@ -135,20 +135,20 @@ AGENT/
 ## 关键接口
 
 - `GET /health`
-- `POST /api/chat`
-- `POST /api/task`
+- `POST /api/chats`
+- `POST /api/tasks`
 - `GET /api/conversations`
 - `POST /api/conversations`
 - `DELETE /api/conversations/<id>`
 - `GET /api/conversations/<id>/messages`
 - `GET /api/conversations/<id>/stats`
-- `GET /api/config`
-- `POST /api/config`
+- `GET /api/settings`
+- `POST /api/settings`
 
 ## 设计说明
 
-- `POST /api/chat` 直接返回 SSE，不再拆分 `stream` / `stop` 接口。
-- `agent` 仍然保留多任务能力，子任务通过本地 HTTP `POST /api/task` 创建。
+- `POST /api/chats` 直接返回 SSE，不再拆分 `stream` / `stop` 接口。
+- `agent` 仍然保留多任务能力，子任务通过本地 HTTP `POST /api/tasks` 创建。
 - `server` 只负责系统能力暴露和持久化，不负责前端页面。
 - `cli` 通过同一套 HTTP API 与内核交互，和 agent 自调用保持一致。
 - 历史会话、消息和配置都保存在本地 SQLite 中。

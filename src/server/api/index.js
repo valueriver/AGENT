@@ -1,8 +1,8 @@
-import { handleChatApi } from "./chat/index.js";
+import { handleChatsApi } from "./chats/index.js";
 import { handleConversationsApi } from "./conversations/index.js";
 import { handleHealthApi } from "./health/index.js";
 import { handleSettingsApi } from "./settings/index.js";
-import { handleTaskApi } from "./task/index.js";
+import { handleTasksApi } from "./tasks/index.js";
 
 const handleApiRequest = async (req, res, deps, context = {}) => {
   const { sendJson } = deps;
@@ -14,16 +14,16 @@ const handleApiRequest = async (req, res, deps, context = {}) => {
     if (path === "/health") {
       return handleHealthApi(req, res, deps, path, method, url, context);
     }
-    if (path.startsWith("/api/chat")) {
-      return handleChatApi(req, res, deps, path, method, url, context);
+    if (path.startsWith("/api/chats")) {
+      return handleChatsApi(req, res, deps, path, method, url, context);
     }
-    if (path.startsWith("/api/task")) {
-      return handleTaskApi(req, res, deps, path, method, url, context);
+    if (path.startsWith("/api/tasks")) {
+      return handleTasksApi(req, res, deps, path, method, url, context);
     }
     if (path.startsWith("/api/conversations")) {
       return handleConversationsApi(req, res, deps, path, method, url, context);
     }
-    if (path.startsWith("/api/config")) {
+    if (path.startsWith("/api/settings")) {
       return handleSettingsApi(req, res, deps, path, method, url, context);
     }
 

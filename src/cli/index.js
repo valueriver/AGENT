@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 
 import readline from "readline";
+import fs from "fs";
+import path from "path";
+import { spawn } from "child_process";
+import { fileURLToPath } from "url";
 
 const SERVER_URL = process.env.AGENT_SERVER_URL || "http://127.0.0.1:9500";
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const SERVER_ENTRY = path.join(REPO_ROOT, "index.js");
+const SERVER_LOG = path.join(REPO_ROOT, "agent-server.log");
 
 const request = async (pathname, options = {}) => {
   const res = await fetch(`${SERVER_URL}${pathname}`, options);
@@ -19,6 +26,35 @@ const checkServer = async () => {
     return true;
   } catch {
     return false;
+  }
+};
+
+const waitForServer = async (timeoutMs) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await checkServer()) return true;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return false;
+};
+
+const spawnServer = () => {
+  const log = fs.openSync(SERVER_LOG, "a");
+  const child = spawn(process.execPath, [SERVER_ENTRY], {
+    detached: true,
+    stdio: ["ignore", log, log],
+    cwd: REPO_ROOT,
+  });
+  child.unref();
+  return child.pid;
+};
+
+const ensureServer = async () => {
+  if (await checkServer()) return;
+  const pid = spawnServer();
+  process.stderr.write(`starting agent kernel (pid ${pid})...\n`);
+  if (!(await waitForServer(10000))) {
+    throw new Error(`failed to start server at ${SERVER_URL}, see ${SERVER_LOG}`);
   }
 };
 
@@ -99,7 +135,7 @@ const readSseResponse = async (res) => {
 };
 
 const runChatTurn = async (conversationId, prompt) => {
-  const res = await fetch(`${SERVER_URL}/api/chat`, {
+  const res = await fetch(`${SERVER_URL}/api/chats`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ conversationId, prompt }),
@@ -110,7 +146,7 @@ const runChatTurn = async (conversationId, prompt) => {
 const commandConfig = async (args) => {
   const action = args[0] || "get";
   if (action === "get") {
-    const res = await request("/api/config");
+    const res = await request("/api/settings");
     process.stdout.write(`${JSON.stringify(res.config || {}, null, 2)}\n`);
     return;
   }
@@ -122,7 +158,7 @@ const commandConfig = async (args) => {
       if (idx <= 0) continue;
       next[pair.slice(0, idx)] = pair.slice(idx + 1);
     }
-    await request("/api/config", {
+    await request("/api/settings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(next),
@@ -180,9 +216,7 @@ const commandRepl = async () => {
 };
 
 const main = async () => {
-  if (!(await checkServer())) {
-    throw new Error(`server unavailable at ${SERVER_URL}, start it with: npm start`);
-  }
+  await ensureServer();
 
   const [command = "repl", ...args] = process.argv.slice(2);
   if (command === "repl") {

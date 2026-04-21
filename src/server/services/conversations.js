@@ -13,9 +13,6 @@ import {
 } from "../repository/messages.js";
 import { getServerConfig } from "./config.js";
 
-const CONVERSATION_INFO_START = "<conversation_info>";
-const CONVERSATION_INFO_END = "</conversation_info>";
-
 let activeConversationId = "";
 
 const setActiveConversationId = (conversationId) => {
@@ -79,27 +76,9 @@ const requireConfig = ({ apiUrl, apiKey, model }) => {
   }
 };
 
-const buildSystemWithConversationInfo = (system, conversationId) => {
-  const cleanSystem = String(system || "")
-    .replace(new RegExp(`${CONVERSATION_INFO_START}[\\s\\S]*?${CONVERSATION_INFO_END}`, "g"), "")
-    .trim();
-
-  const info = `${CONVERSATION_INFO_START}
-当前会话信息：
-- conversationId: ${conversationId}
-
-工作要求：
-- 当前对话历史保存在数据库中
-- 创建子任务时优先调用 POST /api/task
-- 子任务和主会话都只通过 conversationId 关联
-- 处理子任务结果时，优先读取最后一条 assistant 消息
-${CONVERSATION_INFO_END}`;
-
-  return cleanSystem ? `${cleanSystem}\n\n${info}` : info;
-};
-
 const injectSystemMessage = (messages, system) => {
   const next = Array.isArray(messages) ? [...messages] : [];
+  if (!system) return next;
   if (next[0]?.role === "system") {
     next[0] = { ...next[0], content: system };
     return next;
@@ -113,13 +92,12 @@ const prepareChatInput = async (body) => {
   const mergedConfig = mergeConfig(body);
   requireConfig(mergedConfig);
 
-  const runtimeSystem = buildSystemWithConversationInfo(mergedConfig.system, conversationId);
   let contextMessages = Array.isArray(body.messages)
     ? body.messages
     : listMessages(conversationId).messages;
 
   contextMessages = limitMessagesByTurns(contextMessages, mergedConfig.contextTurns);
-  let messages = injectSystemMessage(contextMessages, runtimeSystem);
+  let messages = injectSystemMessage(contextMessages, mergedConfig.system);
   if (body.prompt) {
     messages = [...messages, { role: "user", content: String(body.prompt) }];
   }

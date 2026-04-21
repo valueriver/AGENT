@@ -4,12 +4,12 @@ import { handleSetSettings } from "./set.js";
 const handleSettingsApi = async (req, res, deps, path, method, url) => {
   const { sendJson } = deps;
 
-  if (path === "/api/config" && method === "GET") {
+  if (path === "/api/settings" && method === "GET") {
     await handleGetSettings(req, res, deps);
     return;
   }
 
-  if (path === "/api/config" && method === "POST") {
+  if (path === "/api/settings" && method === "POST") {
     await handleSetSettings(req, res, deps);
     return;
   }
