@@ -6,10 +6,10 @@ const listTasks = ({ conversationId, limit = 50 } = {}) => {
     return db
       .prepare(
         `SELECT * FROM tasks
-         WHERE parent_conversation_id = ? OR child_conversation_id = ?
+         WHERE conversation_id = ?
          ORDER BY id DESC LIMIT ?`
       )
-      .all(conversationId, conversationId, limit);
+      .all(conversationId, limit);
   }
   return db.prepare("SELECT * FROM tasks ORDER BY id DESC LIMIT ?").all(limit);
 };

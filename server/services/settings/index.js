@@ -1,2 +1,2 @@
-export { getServerConfig } from "./get.js";
-export { setServerConfig } from "./set.js";
+export { getServerSettings } from "./get.js";
+export { setServerSettings } from "./set.js";

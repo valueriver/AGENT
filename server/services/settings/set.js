@@ -1,13 +1,13 @@
-import { setConfigRecord } from "../../repository/settings/index.js";
+import { setSettingsRecord } from "../../repository/settings/index.js";
 
-const setServerConfig = (cfg) => {
-  setConfigRecord({
-    apiUrl: cfg.apiUrl || "",
-    apiKey: cfg.apiKey || "",
-    model: cfg.model || "",
-    system: cfg.system || "",
-    contextTurns: Math.max(0, Number.parseInt(cfg.contextTurns, 10) || 0),
+const setServerSettings = (settings) => {
+  setSettingsRecord({
+    apiUrl: settings.apiUrl || "",
+    apiKey: settings.apiKey || "",
+    model: settings.model || "",
+    system: settings.system || "",
+    contextTurns: Math.max(0, Number.parseInt(settings.contextTurns, 10) || 0),
   });
 };
 
-export { setServerConfig };
+export { setServerSettings };

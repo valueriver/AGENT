@@ -7,8 +7,8 @@ REPO_BRANCH="${AGENT_REPO_BRANCH:-main}"
 INSTALL_ROOT="${AGENT_INSTALL_ROOT:-$HOME/.local/share/agent-cli}"
 BIN_DIR="${AGENT_BIN_DIR:-$HOME/.local/bin}"
 WRAPPER_PATH="$BIN_DIR/agent"
-CONFIG_DIR="${AGENT_CONFIG_DIR:-$HOME/.config/agent-cli}"
-CONFIG_FILE="$CONFIG_DIR/config.env"
+SETTINGS_DIR="${AGENT_SETTINGS_DIR:-$HOME/.config/agent-cli}"
+SETTINGS_FILE="$SETTINGS_DIR/settings.env"
 SERVER_HOST="${AGENT_SERVER_HOST:-127.0.0.1}"
 SERVER_PORT="${AGENT_SERVER_PORT:-9500}"
 SERVER_LOG="${AGENT_SERVER_LOG:-$INSTALL_ROOT/agent-server.log}"
@@ -182,9 +182,9 @@ write_wrapper() {
   cat > "$WRAPPER_PATH" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
-if [[ -f "$CONFIG_FILE" ]]; then
+if [[ -f "$SETTINGS_FILE" ]]; then
   set -a
-  . "$CONFIG_FILE"
+  . "$SETTINGS_FILE"
   set +a
 fi
 SERVER_URL="\${AGENT_SERVER_URL:-http://$SERVER_HOST:$SERVER_PORT}"
@@ -197,7 +197,7 @@ if ! curl -fsS "\$SERVER_URL/health" >/dev/null 2>&1; then
     fi
   done
 fi
-exec node "$INSTALL_ROOT/src/cli/index.js" "\$@"
+exec node "$INSTALL_ROOT/cli/index.js" "\$@"
 EOF
   chmod +x "$WRAPPER_PATH"
 }
@@ -247,11 +247,11 @@ print_usage() {
   printf '\n'
   printf 'Installed to: %s\n' "$INSTALL_ROOT"
   printf 'Command: %s\n' "$WRAPPER_PATH"
-  printf 'Config: %s\n' "$CONFIG_FILE"
+  printf 'Settings: %s\n' "$SETTINGS_FILE"
   printf 'Server: http://%s:%s\n' "$SERVER_HOST" "$SERVER_PORT"
   printf '\n'
   printf 'Next:\n'
-  printf '  agent config set apiUrl=https://api.openai.com/v1/chat/completions apiKey=YOUR_API_KEY model=gpt-5.4\n'
+  printf '  agent settings set apiUrl=https://api.openai.com/v1/chat/completions apiKey=YOUR_API_KEY model=gpt-5.4\n'
   printf '  agent\n'
   printf '  agent chat "你好"\n'
   printf '\n'

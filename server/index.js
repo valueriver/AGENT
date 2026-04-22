@@ -11,6 +11,7 @@ const sendJson = (res, statusCode, payload) => {
 };
 
 const openSse = (res) => {
+  if (res.writableEnded || res.destroyed) return;
   res.writeHead(200, {
     "Content-Type": "text/event-stream; charset=utf-8",
     "Cache-Control": "no-cache, no-transform",
@@ -19,8 +20,13 @@ const openSse = (res) => {
 };
 
 const sendSse = (res, event, payload) => {
-  res.write(`event: ${event}\n`);
-  res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  if (res.writableEnded || res.destroyed) return;
+  try {
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  } catch {
+    // 连接已关闭(客户端 abort),静默丢弃
+  }
 };
 
 const readBody = async (req) => {

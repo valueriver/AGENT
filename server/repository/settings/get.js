@@ -1,12 +1,12 @@
 import { getDb } from "../db.js";
 
-const getConfigRecord = () => {
-  const rows = getDb().prepare("SELECT key, value FROM config").all();
-  const cfg = {};
+const getSettingsRecord = () => {
+  const rows = getDb().prepare("SELECT key, value FROM settings").all();
+  const settings = {};
   rows.forEach((row) => {
-    cfg[row.key] = JSON.parse(row.value);
+    settings[row.key] = JSON.parse(row.value);
   });
-  return cfg;
+  return settings;
 };
 
-export { getConfigRecord };
+export { getSettingsRecord };

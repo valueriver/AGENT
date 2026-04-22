@@ -1,38 +1,16 @@
 import { parseJson } from "../../utils.js";
-import { runConversationChat } from "../../services/chats/index.js";
-import { normalizeConversationId } from "../../services/conversations/index.js";
+import { createChat } from "../../services/chats/index.js";
 
-const handleChatPost = async (req, res, { openSse, readBody, sendSse }) => {
+const handleChatsPost = async (req, res, { readBody, sendJson }) => {
   const raw = await readBody(req);
-  const body = parseJson(raw || "{}", "server.chat.body");
-  const conversationId = normalizeConversationId(body.conversationId);
-
-  openSse(res);
-  sendSse(res, "connected", { ok: true, conversationId });
-
-  const controller = new AbortController();
-  req.on("close", () => {
-    controller.abort();
-  });
-
-  try {
-    await runConversationChat(conversationId, body, {
-      signal: controller.signal,
-      onEvent: (event) => {
-        sendSse(res, event.type, event);
-      },
-    });
-  } catch (error) {
-    if (error?.name !== "AbortError") {
-      sendSse(res, "error", {
-        ok: false,
-        conversationId,
-        error: error.message,
-      });
-    }
-  } finally {
-    res.end();
+  const body = parseJson(raw || "{}", "server.chats.body");
+  const title = String(body.title || "").trim();
+  if (!title) {
+    sendJson(res, 400, { ok: false, error: "title is required" });
+    return;
   }
+  const conversation = createChat(title);
+  sendJson(res, 201, { ok: true, conversation });
 };
 
-export { handleChatPost };
+export { handleChatsPost };

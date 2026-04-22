@@ -1,2 +1,2 @@
-export { getConfigRecord } from "./get.js";
-export { setConfigRecord } from "./set.js";
+export { getSettingsRecord } from "./get.js";
+export { setSettingsRecord } from "./set.js";

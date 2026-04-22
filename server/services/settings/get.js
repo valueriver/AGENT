@@ -1,18 +1,18 @@
-import { getConfigRecord } from "../../repository/settings/index.js";
+import { getSettingsRecord } from "../../repository/settings/index.js";
 
-const getServerConfig = () => {
+const getServerSettings = () => {
   try {
-    const cfg = getConfigRecord();
+    const settings = getSettingsRecord();
     return {
-      apiUrl: cfg.apiUrl || "",
-      apiKey: cfg.apiKey || "",
-      model: cfg.model || "",
-      system: cfg.system || "",
-      contextTurns: Number.isInteger(Number(cfg.contextTurns)) ? Number(cfg.contextTurns) : 10,
+      apiUrl: settings.apiUrl || "",
+      apiKey: settings.apiKey || "",
+      model: settings.model || "",
+      system: settings.system || "",
+      contextTurns: Number.isInteger(Number(settings.contextTurns)) ? Number(settings.contextTurns) : 10,
     };
   } catch {
     return { apiUrl: "", apiKey: "", model: "", system: "", contextTurns: 10 };
   }
 };
 
-export { getServerConfig };
+export { getServerSettings };

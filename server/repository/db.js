@@ -15,46 +15,49 @@ const initDb = () => {
   fs.mkdirSync(DB_DIR, { recursive: true });
   db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
-  db.pragma("foreign_keys = ON");
 
   db.exec(`
-    CREATE TABLE IF NOT EXISTS config (
+    CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS conversations (
+    CREATE TABLE IF NOT EXISTS chats (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id TEXT NOT NULL UNIQUE,
       title TEXT NOT NULL,
       summary TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      conversation_id INTEGER NOT NULL,
+      conversation_id TEXT NOT NULL,
       message TEXT NOT NULL,
-      anchor TEXT,
+      memo TEXT,
       usage TEXT,
       meta TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS memos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      conversation_id TEXT NOT NULL,
+      message_id INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      parent_conversation_id INTEGER,
-      child_conversation_id INTEGER NOT NULL,
+      conversation_id TEXT NOT NULL,
       name TEXT NOT NULL,
       prompt TEXT,
       response TEXT,
       status TEXT NOT NULL DEFAULT 'pending',
       error TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      finished_at DATETIME,
-      FOREIGN KEY (parent_conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
-      FOREIGN KEY (child_conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+      finished_at DATETIME
     );
 
     CREATE TABLE IF NOT EXISTS memories (
@@ -63,17 +66,19 @@ const initDb = () => {
       description TEXT NOT NULL DEFAULT '',
       content TEXT NOT NULL,
       creator TEXT NOT NULL DEFAULT 'user',
-      pinned INTEGER NOT NULL DEFAULT 0,
+      visibility TEXT NOT NULL DEFAULT 'hidden',
       enabled INTEGER NOT NULL DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE INDEX IF NOT EXISTS idx_chats_conversation ON chats(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
-    CREATE INDEX IF NOT EXISTS idx_messages_anchor ON messages(conversation_id) WHERE anchor IS NOT NULL;
-    CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_conversation_id);
+    CREATE INDEX IF NOT EXISTS idx_messages_memo ON messages(conversation_id) WHERE memo IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_memos_conversation ON memos(conversation_id, id);
+    CREATE INDEX IF NOT EXISTS idx_memos_message ON memos(message_id);
+    CREATE INDEX IF NOT EXISTS idx_tasks_conversation ON tasks(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
-    CREATE INDEX IF NOT EXISTS idx_memories_enabled_pinned ON memories(enabled, pinned);
+    CREATE INDEX IF NOT EXISTS idx_memories_enabled_visibility ON memories(enabled, visibility);
   `);
 
   return db;

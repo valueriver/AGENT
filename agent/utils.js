@@ -103,11 +103,11 @@ const extractLastTag = (text, tag) => {
   return matches[matches.length - 1][1].trim() || null;
 };
 
-const extractAnchor = (text) => extractLastTag(text, "anchor");
+const extractMemo = (text) => extractLastTag(text, "memo");
 const extractSummary = (text) => extractLastTag(text, "summary");
 
 export {
-  extractAnchor,
+  extractMemo,
   extractSummary,
   normalizeAgentMessages,
   normalizeChatOptions,

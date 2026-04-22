@@ -1,5 +1,7 @@
 import { getDb } from "../db.js";
 
+const VISIBILITY_VALUES = new Set(["hidden", "starred", "pinned"]);
+
 const updateMemory = (id, patch) => {
   const fields = [];
   const values = [];
@@ -19,18 +21,25 @@ const updateMemory = (id, patch) => {
     fields.push("creator = ?");
     values.push(String(patch.creator));
   }
-  if (patch.pinned !== undefined) {
-    fields.push("pinned = ?");
-    values.push(patch.pinned ? 1 : 0);
+  if (patch.visibility !== undefined) {
+    const v = String(patch.visibility);
+    if (!VISIBILITY_VALUES.has(v)) {
+      throw new Error(
+        `invalid visibility: ${patch.visibility}. expected hidden | starred | pinned`,
+      );
+    }
+    fields.push("visibility = ?");
+    values.push(v);
   }
   if (patch.enabled !== undefined) {
     fields.push("enabled = ?");
     values.push(patch.enabled ? 1 : 0);
   }
   if (!fields.length) return false;
-  fields.push("updated_at = CURRENT_TIMESTAMP");
-  values.push(id);
-  const info = getDb().prepare(`UPDATE memories SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+  values.push(Number(id));
+  const info = getDb()
+    .prepare(`UPDATE memories SET ${fields.join(", ")} WHERE id = ?`)
+    .run(...values);
   return info.changes > 0;
 };
 

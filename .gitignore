@@ -9,3 +9,6 @@ src/web/dist/
 *.db
 *.db-shm
 *.db-wal
+.tmp_codex/
+database/
+gui/dist/

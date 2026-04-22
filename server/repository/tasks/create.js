@@ -1,13 +1,13 @@
 import { getDb } from "../db.js";
 
-const createTaskRow = ({ parentConversationId, childConversationId, name, prompt }) => {
+const createTaskRow = ({ conversationId, name, prompt }) => {
   const row = getDb()
     .prepare(
-      `INSERT INTO tasks (parent_conversation_id, child_conversation_id, name, prompt, status)
-       VALUES (?, ?, ?, ?, 'pending')
+      `INSERT INTO tasks (conversation_id, name, prompt, status)
+       VALUES (?, ?, ?, 'pending')
        RETURNING id`
     )
-    .get(parentConversationId, childConversationId, name, prompt);
+    .get(conversationId, name, prompt);
   return row.id;
 };
 

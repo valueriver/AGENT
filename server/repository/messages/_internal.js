@@ -1,19 +1,29 @@
 const INSERT_SQL = `
-  INSERT INTO messages (conversation_id, message, anchor, usage, meta)
+  INSERT INTO messages (conversation_id, message, memo, usage, meta)
   VALUES (?, ?, ?, ?, ?)
 `;
 
 const insertOne = (db, conversationId, message) => {
-  const anchor = message?.anchor ? String(message.anchor) : null;
+  const memo = message?.memo ? String(message.memo) : null;
   const usage = message?.usage ? JSON.stringify(message.usage) : null;
   const meta = message?.meta ? JSON.stringify(message.meta) : null;
-  db.prepare(INSERT_SQL).run(
-    Number(conversationId),
+  const result = db.prepare(INSERT_SQL).run(
+    String(conversationId),
     JSON.stringify(message),
-    anchor,
+    memo,
     usage,
     meta
   );
+  const messageId = Number(result.lastInsertRowid);
+
+  if (memo) {
+    db.prepare(`
+      INSERT INTO memos (conversation_id, message_id, content)
+      VALUES (?, ?, ?)
+    `).run(String(conversationId), messageId, memo);
+  }
+
+  return messageId;
 };
 
 const lastSummaryOf = (messages) => {
@@ -23,14 +33,11 @@ const lastSummaryOf = (messages) => {
   return null;
 };
 
-const touchConversationStmt = (db, conversationId, summary) => {
+const updateConversationSummaryStmt = (db, conversationId, summary) => {
   if (summary !== null) {
-    db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP, summary = ? WHERE id = ?")
-      .run(summary, Number(conversationId));
-  } else {
-    db.prepare("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-      .run(Number(conversationId));
+    db.prepare("UPDATE chats SET summary = ? WHERE conversation_id = ?")
+      .run(summary, String(conversationId));
   }
 };
 
-export { insertOne, lastSummaryOf, touchConversationStmt };
+export { insertOne, lastSummaryOf, updateConversationSummaryStmt };

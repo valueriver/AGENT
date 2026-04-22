@@ -2,7 +2,7 @@ import { tools } from "./tools.js";
 import { runTools } from "./runner.js";
 import { callLlmStream } from "./lm/client.js";
 import {
-  extractAnchor,
+  extractMemo,
   extractSummary,
   normalizeAgentMessages,
   normalizeChatOptions,
@@ -63,12 +63,12 @@ const chat = async (messages, {
     }
 
     const text = message.content ?? "";
-    const anchor = extractAnchor(text);
+    const memo = extractMemo(text);
     const summary = extractSummary(text);
     const replyMsg = {
       role: "assistant",
       content: text,
-      ...(anchor ? { anchor } : {}),
+      ...(memo ? { memo } : {}),
       ...(summary ? { summary } : {}),
       ...(message.usage ? { usage: message.usage } : {})
     };

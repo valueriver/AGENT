@@ -1,5 +1,5 @@
 import { getDb } from "../db.js";
-import { insertOne, lastSummaryOf, touchConversationStmt } from "./_internal.js";
+import { insertOne, lastSummaryOf, updateConversationSummaryStmt } from "./_internal.js";
 
 const saveMessageBatch = (conversationId, messages) => {
   const db = getDb();
@@ -8,7 +8,7 @@ const saveMessageBatch = (conversationId, messages) => {
     for (const message of items) {
       insertOne(db, conversationId, message);
     }
-    touchConversationStmt(db, conversationId, summary);
+    updateConversationSummaryStmt(db, conversationId, summary);
   });
   tx(messages);
 };
