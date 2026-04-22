@@ -7,7 +7,7 @@ import {
   markTaskError,
   markTaskRunning,
 } from "../../repository/tasks/index.js";
-import { runConversationChat } from "../conversations/chat.js";
+import { runConversationChat } from "../chats/run.js";
 import { running } from "./_state.js";
 import { getLastAssistantMessage } from "./utils.js";
 

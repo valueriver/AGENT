@@ -1,4 +1,4 @@
-import { setConfigRecord } from "../../repository/config/index.js";
+import { setConfigRecord } from "../../repository/settings/index.js";
 
 const setServerConfig = (cfg) => {
   setConfigRecord({

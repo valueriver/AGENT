@@ -1,8 +1,6 @@
 import { parseJson } from "../../utils.js";
-import {
-  normalizeConversationId,
-  runConversationChat,
-} from "../../services/conversations/index.js";
+import { runConversationChat } from "../../services/chats/index.js";
+import { normalizeConversationId } from "../../services/conversations/index.js";
 
 const handleChatPost = async (req, res, { openSse, readBody, sendSse }) => {
   const raw = await readBody(req);

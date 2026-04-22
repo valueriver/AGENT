@@ -1,4 +1,4 @@
-import { deleteMemory, getMemory } from "../../repository/memories/index.js";
+import { deleteMemory, getMemory } from "../../services/memories/index.js";
 
 const handleMemoriesDelete = async (_req, res, { sendJson }, url) => {
   const id = url.searchParams.get("id");

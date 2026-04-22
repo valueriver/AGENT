@@ -1,4 +1,4 @@
-import { listAnchors } from "../../services/conversations/index.js";
+import { listAnchors } from "../../services/anchors/index.js";
 
 const handleAnchorsGet = async (_req, res, { sendJson }, url) => {
   const conversationId = url.searchParams.get("conversationId");

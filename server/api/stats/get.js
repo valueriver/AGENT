@@ -1,4 +1,4 @@
-import { getConversationUsage } from "../../services/conversations/index.js";
+import { getConversationUsage } from "../../services/stats/index.js";
 
 const handleStatsGet = async (_req, res, { sendJson }, url) => {
   const conversationId = url.searchParams.get("conversationId");

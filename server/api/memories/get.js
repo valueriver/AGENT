@@ -1,4 +1,4 @@
-import { getMemory, listMemories } from "../../repository/memories/index.js";
+import { getMemory, listMemories } from "../../services/memories/index.js";
 
 const handleMemoriesGet = async (_req, res, { sendJson }, url) => {
   const id = url.searchParams.get("id");

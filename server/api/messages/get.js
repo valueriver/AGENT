@@ -1,4 +1,4 @@
-import { listMessages } from "../../services/conversations/index.js";
+import { listMessages } from "../../services/messages/index.js";
 
 const handleMessagesGet = async (_req, res, { sendJson }, url) => {
   const conversationId = url.searchParams.get("conversationId");

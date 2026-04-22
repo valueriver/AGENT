@@ -1,7 +1,7 @@
 import { chat } from "../../../agent/handler.js";
 import { touchConversation } from "../../repository/conversations/index.js";
 import { saveMessageBatch } from "../../repository/messages/index.js";
-import { prepareChatInput } from "./prepare.js";
+import { prepareChatInput } from "../conversations/prepare.js";
 
 const runConversationChat = async (conversationId, input = {}, options = {}) => {
   const prepared = await prepareChatInput({ ...input, conversationId });

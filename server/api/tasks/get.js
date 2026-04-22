@@ -1,4 +1,4 @@
-import { getTask, listTasks } from "../../repository/tasks/index.js";
+import { getTask, listTasks } from "../../services/tasks/index.js";
 
 const handleTasksGet = async (_req, res, { sendJson }, url) => {
   const id = url.searchParams.get("id");

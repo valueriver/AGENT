@@ -128,16 +128,18 @@ AGENT/
     index.js
     utils.js
     api/
-      anchors/   chats/   conversations/   health/
-      memories/  messages/  settings/  stats/  tasks/
+      anchors/  chats/  conversations/  health/
+      memories/ messages/ settings/ stats/ tasks/
+    services/
+      anchors/  chats/  conversations/  health/
+      memories/ messages/ settings/ stats/ tasks/
     repository/
       db.js
-      config/  conversations/  memories/  messages/  tasks/
-    services/
-      conversations/  settings/  tasks/
+      anchors/  conversations/  memories/
+      messages/ settings/ stats/ tasks/
 ```
 
-**对称**：`api/` / `repository/` / `services/` 三层同构——每个资源一个目录，目录内一动作一文件，`index.js` 做 barrel 或 router。
+**对称**：`api/` 和 `services/` 九个资源完全一一对应；`repository/` 只在有持久化的资源上出现（chats 和 health 没 SQL）。层间单向依赖：api → services → repository，api 不直接 import repository。
 
 ## 关键接口
 

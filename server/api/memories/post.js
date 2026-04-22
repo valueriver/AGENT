@@ -1,5 +1,5 @@
 import { parseJson } from "../../utils.js";
-import { createMemory, getMemory } from "../../repository/memories/index.js";
+import { createMemory, getMemory } from "../../services/memories/index.js";
 
 const handleMemoryPost = async (req, res, { readBody, sendJson }) => {
   const raw = await readBody(req);

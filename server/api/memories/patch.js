@@ -1,5 +1,5 @@
 import { parseJson } from "../../utils.js";
-import { getMemory, updateMemory } from "../../repository/memories/index.js";
+import { getMemory, updateMemory } from "../../services/memories/index.js";
 
 const handleMemoriesPatch = async (req, res, { readBody, sendJson }, url) => {
   const id = url.searchParams.get("id");

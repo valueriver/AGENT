@@ -1,5 +1,5 @@
+import { listAnchorsBefore } from "../../repository/anchors/index.js";
 import { getConversation } from "../../repository/conversations/index.js";
-import { listAnchorsBefore } from "../../repository/messages/index.js";
 
 const buildConversationContext = (conversationId, contextMessages) => {
   const conv = getConversation(conversationId);
