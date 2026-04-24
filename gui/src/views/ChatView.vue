@@ -752,7 +752,7 @@ onMounted(async () => {
             </span>
             <button
               v-if="sending"
-              class="btn btn-sm pointer-events-auto !bg-danger !border-danger !text-bg hover:!bg-danger/90"
+              class="btn btn-sm pointer-events-auto !bg-danger !border-danger !text-white hover:!bg-danger/90"
               title="停止生成"
               @click="stopStream"
             >

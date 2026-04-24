@@ -2,6 +2,7 @@ import { setSettingsRecord } from "../../repository/settings/index.js";
 
 const setServerSettings = (settings) => {
   setSettingsRecord({
+    provider: settings.provider || "deepseek",
     apiUrl: settings.apiUrl || "",
     apiKey: settings.apiKey || "",
     model: settings.model || "",

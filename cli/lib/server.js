@@ -3,6 +3,9 @@ import { spawn } from "child_process";
 import { REPO_ROOT, SERVER_ENTRY, SERVER_LOG } from "../runtime.js";
 import { request } from "./http.js";
 
+let managedServerChild = null;
+let cleanupBound = false;
+
 const checkServer = async () => {
   try {
     await request("/health");
@@ -21,14 +24,45 @@ const waitForServer = async (timeoutMs) => {
   return false;
 };
 
+const stopManagedServer = () => {
+  if (!managedServerChild || managedServerChild.killed) return;
+  try {
+    managedServerChild.kill("SIGTERM");
+  } catch {
+    // Ignore cleanup failures during process shutdown.
+  }
+};
+
+const bindCleanup = () => {
+  if (cleanupBound) return;
+  cleanupBound = true;
+
+  process.on("exit", () => {
+    stopManagedServer();
+  });
+
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(signal, () => {
+      stopManagedServer();
+      process.exitCode = signal === "SIGINT" ? 130 : 0;
+      process.exit();
+    });
+  }
+};
+
 const spawnServer = () => {
   const log = fs.openSync(SERVER_LOG, "a");
   const child = spawn(process.execPath, [SERVER_ENTRY], {
-    detached: true,
     stdio: ["ignore", log, log],
     cwd: REPO_ROOT,
   });
-  child.unref();
+  managedServerChild = child;
+  child.once("exit", () => {
+    if (managedServerChild?.pid === child.pid) {
+      managedServerChild = null;
+    }
+  });
+  bindCleanup();
   return child.pid;
 };
 

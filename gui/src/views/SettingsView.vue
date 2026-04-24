@@ -1,15 +1,22 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { api } from "../api.js";
+import {
+  createProviderCatalog,
+  getProvider,
+} from "../data/providers.js";
 
 const settings = reactive({
+  provider: "deepseek",
   apiUrl: "",
   apiKey: "",
   model: "",
   system: "",
-  contextTurns: 10,
+  contextTurns: 100,
 });
 const statusText = ref("");
+const providerCatalog = createProviderCatalog();
+const selectedProvider = computed(() => getProvider(settings.provider) || getProvider("custom"));
 
 const DEFAULT_SYSTEM = `你是一个嵌入在本地控制台里的 Agent，拥有持久化会话、便签索引和真实终端执行能力。
 
@@ -87,6 +94,42 @@ sqlite3 -readonly /Users/woodchange/Desktop/AGENT/database/agent.db \\
 # 工具：screen_capture
 截取用户**本机屏幕**(不是浏览器)。mode="screen" 直接整屏,mode="selection" 弹选区让用户手动框选。返回图片路径。同样**你看不到内容**,是给用户看或外接视觉工具处理的。只有用户明确请求"截屏" / "看下我屏幕"时才用。
 
+# 任务 API（可直接 curl）
+你可以直接调用本地任务接口，把长任务丢到后台异步执行。服务地址默认是 \`http://127.0.0.1:9500\`。
+
+- 创建任务：\`POST /api/tasks\`
+- 查询单个任务：\`GET /api/tasks?id=任务ID\`
+- 查询任务列表：\`GET /api/tasks?limit=50\`
+- 按会话过滤任务：\`GET /api/tasks?conversationId=xxx\`
+- 中止任务：\`PATCH /api/tasks?id=任务ID\`，body 只能是 \`{"status":"aborted"}\`
+
+示例：创建任务
+\`\`\`bash
+curl -s http://127.0.0.1:9500/api/tasks \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "name": "批量检查日志",
+    "detail": "检查最近错误日志并总结问题",
+    "provider": "deepseek",
+    "model": "deepseek-v4-flash"
+  }'
+\`\`\`
+
+示例：查询任务
+\`\`\`bash
+curl -s 'http://127.0.0.1:9500/api/tasks?limit=20'
+curl -s 'http://127.0.0.1:9500/api/tasks?id=12'
+\`\`\`
+
+示例：中止任务
+\`\`\`bash
+curl -s -X PATCH 'http://127.0.0.1:9500/api/tasks?id=12' \\
+  -H 'Content-Type: application/json' \\
+  -d '{"status":"aborted"}'
+\`\`\`
+
+注意：当前**没有删除任务 API**。如果用户要“删除任务”,先明确说明现在只支持创建、查询和中止,不要假设存在 \`DELETE /api/tasks\`。
+
 # 风格
 - 中文回复，工程向、简洁。
 - 动手前一句话说打算怎么做，动手后一句话报结果。不复述用户原话，不写「好的，我来帮你…」的开场。
@@ -99,6 +142,9 @@ const refresh = async () => {
   try {
     const result = await api.getSettings();
     Object.assign(settings, result.settings || {});
+    if (!settings.apiUrl && !settings.model) {
+      applyProviderDefaults(settings.provider || "deepseek");
+    }
   } catch (e) {
     statusText.value = `加载失败：${e.message}`;
   }
@@ -116,6 +162,18 @@ const save = async () => {
   } catch (e) {
     statusText.value = `保存失败：${e.message}`;
   }
+};
+
+const applyProviderDefaults = (providerId) => {
+  const provider = getProvider(providerId);
+  if (!provider) return;
+  settings.provider = provider.id;
+  settings.apiUrl = provider.apiUrl || "";
+  settings.model = provider.defaultModel || "";
+};
+
+const onProviderChange = (event) => {
+  applyProviderDefaults(event.target.value);
 };
 
 const applyDefault = () => {
@@ -161,11 +219,34 @@ onMounted(refresh);
       <h3 class="m-0 text-sm font-semibold">模型接入</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div class="field">
+          <label class="field-label">供应方</label>
+          <select
+            :value="settings.provider"
+            class="input"
+            @change="onProviderChange"
+          >
+            <optgroup
+              v-for="group in providerCatalog.groups"
+              :key="group.id"
+              :label="group.name"
+            >
+              <option
+                v-for="provider in providerCatalog.getProvidersByGroup(group.id)"
+                :key="provider.id"
+                :value="provider.id"
+              >
+                {{ provider.name }}
+              </option>
+            </optgroup>
+          </select>
+          <span class="field-hint">供应方决定默认 API URL、模型和部分解析逻辑</span>
+        </div>
+        <div class="field">
           <label class="field-label">API URL</label>
           <input
             v-model="settings.apiUrl"
             class="input"
-            placeholder="https://api.openai.com/v1"
+            :placeholder="selectedProvider?.apiUrl || 'https://api.openai.com/v1/chat/completions'"
           />
           <span class="field-hint">兼容 OpenAI 格式的接口地址</span>
         </div>
@@ -184,7 +265,7 @@ onMounted(refresh);
           <input
             v-model="settings.model"
             class="input"
-            placeholder="gpt-4o-mini / claude-sonnet-4-6 ..."
+            :placeholder="selectedProvider?.defaultModel || 'gpt-5.5 / claude-sonnet-4-6 ...'"
           />
         </div>
         <div class="field">

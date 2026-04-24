@@ -1,28 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #0b0d12;
-  --color-bg-raised: #11141b;
-  --color-bg-panel: #151924;
-  --color-bg-inset: #0d1017;
-  --color-bg-hover: #1b2030;
-  --color-bg-active: #232a3d;
+  --color-bg: var(--ui-bg);
+  --color-bg-raised: var(--ui-bg-raised);
+  --color-bg-panel: var(--ui-bg-panel);
+  --color-bg-inset: var(--ui-bg-inset);
+  --color-bg-hover: var(--ui-bg-hover);
+  --color-bg-active: var(--ui-bg-active);
 
-  --color-border: #222836;
-  --color-border-strong: #2d354a;
-  --color-border-soft: #1a1f2b;
+  --color-border: var(--ui-border);
+  --color-border-strong: var(--ui-border-strong);
+  --color-border-soft: var(--ui-border-soft);
 
-  --color-text: #e6e8ee;
-  --color-text-dim: #a0a7b8;
-  --color-text-mute: #6b7388;
-  --color-text-faint: #4a5163;
+  --color-text: var(--ui-text);
+  --color-text-dim: var(--ui-text-dim);
+  --color-text-mute: var(--ui-text-mute);
+  --color-text-faint: var(--ui-text-faint);
 
-  --color-accent: #7c8cff;
-  --color-accent-strong: #6977ff;
+  --color-accent: var(--ui-accent);
+  --color-accent-strong: var(--ui-accent-strong);
 
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
+  --color-success: var(--ui-success);
+  --color-warning: var(--ui-warning);
+  --color-danger: var(--ui-danger);
 
   --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text",
     "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -43,7 +43,57 @@
 
 @layer base {
   :root {
+    --ui-bg: #0b0d12;
+    --ui-bg-raised: #11141b;
+    --ui-bg-panel: #151924;
+    --ui-bg-inset: #0d1017;
+    --ui-bg-hover: #1b2030;
+    --ui-bg-active: #232a3d;
+
+    --ui-border: #222836;
+    --ui-border-strong: #2d354a;
+    --ui-border-soft: #1a1f2b;
+
+    --ui-text: #e6e8ee;
+    --ui-text-dim: #a0a7b8;
+    --ui-text-mute: #6b7388;
+    --ui-text-faint: #4a5163;
+
+    --ui-accent: #7c8cff;
+    --ui-accent-strong: #6977ff;
+
+    --ui-success: #4ade80;
+    --ui-warning: #fbbf24;
+    --ui-danger: #f87171;
+
     color-scheme: dark;
+  }
+
+  :root[data-theme="light"] {
+    --ui-bg: #f4f6fb;
+    --ui-bg-raised: #ffffff;
+    --ui-bg-panel: #ffffff;
+    --ui-bg-inset: #edf2f8;
+    --ui-bg-hover: #e7edf6;
+    --ui-bg-active: #dde5f0;
+
+    --ui-border: #d6ddeb;
+    --ui-border-strong: #bcc7d8;
+    --ui-border-soft: #e6ebf4;
+
+    --ui-text: #172033;
+    --ui-text-dim: #45526a;
+    --ui-text-mute: #69758a;
+    --ui-text-faint: #8b97ab;
+
+    --ui-accent: #4568ff;
+    --ui-accent-strong: #3658ea;
+
+    --ui-success: #188f57;
+    --ui-warning: #b77700;
+    --ui-danger: #d14848;
+
+    color-scheme: light;
   }
 
   html,
@@ -56,6 +106,7 @@
   body {
     @apply bg-bg text-text font-sans text-base antialiased;
     line-height: 1.5;
+    transition: background-color 160ms ease, color 160ms ease;
   }
 
   button {
@@ -111,7 +162,7 @@
   }
 
   .btn-primary {
-    @apply bg-accent border-accent text-bg font-semibold;
+    @apply bg-accent border-accent text-white font-semibold;
   }
   .btn-primary:hover {
     @apply bg-accent-strong border-accent-strong;
@@ -230,7 +281,7 @@
     @apply items-end;
   }
   .msg-user .msg-avatar {
-    @apply bg-accent text-bg border-accent;
+    @apply bg-accent text-white border-accent;
   }
   .msg-user .msg-content {
     background: color-mix(in oklab, var(--color-accent) 18%, transparent);
