@@ -142,8 +142,8 @@ const themeLabel = computed(() =>
       >
         <div
           class="w-9 h-9 rounded-xl grid place-items-center text-white font-bold text-base tracking-tight shrink-0"
-          style="background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
-                 box-shadow: 0 6px 20px rgba(124, 58, 237, 0.35);"
+          style="background: linear-gradient(135deg, #FFD21E 0%, #f59e0b 100%);
+                 box-shadow: 0 6px 20px rgba(255, 210, 30, 0.35);"
         >
           A
         </div>

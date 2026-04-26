@@ -25,9 +25,10 @@
   --color-text-mute: #6b7280;     /* gray-500 */
   --color-text-faint: #4b5563;    /* gray-600 */
 
-  --color-accent: #a78bfa;        /* purple-400 */
-  --color-accent-strong: #8b5cf6; /* purple-500 */
-  --color-accent-soft: rgba(167, 139, 250, 0.18);
+  /* HuggingFace 招牌黄(品牌色),用于点缀:logo、链接、focus ring、selection */
+  --color-accent: #FFD21E;
+  --color-accent-strong: #facc15;
+  --color-accent-soft: rgba(255, 210, 30, 0.18);
 
   --color-success: #4ade80;
   --color-warning: #fbbf24;
@@ -85,9 +86,10 @@
     --color-text-mute: #6b7280;     /* gray-500 */
     --color-text-faint: #9ca3af;    /* gray-400 */
 
-    --color-accent: #7c3aed;        /* purple-600 */
-    --color-accent-strong: #6d28d9; /* purple-700 */
-    --color-accent-soft: rgba(124, 58, 237, 0.1);
+    /* light 模式下黄色对比度不够,降到暖橙(可读性) */
+    --color-accent: #b45309;        /* amber-700 */
+    --color-accent-strong: #92400e; /* amber-800 */
+    --color-accent-soft: rgba(255, 210, 30, 0.22);
 
     --color-success: #16a34a;
     --color-warning: #b45309;
@@ -291,11 +293,8 @@
     border: 1px solid var(--bubble-border);
     color: var(--color-text);
   }
-  /* 用户气泡:紫色色块 */
-  .flex.justify-end > .msg-content {
-    background: var(--color-accent-soft);
-    border-color: transparent;
-  }
+  /* 用户气泡:跟 AI 气泡同色(chat-ui 真实做法 — 不强调用户) */
+  /* 想区分对齐就够,不再用色块 */
 
   /* ─────────────────────────────────────────────────────────
      工具调用 BlockWrapper

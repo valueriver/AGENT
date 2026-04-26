@@ -502,8 +502,8 @@ onMounted(async () => {
             <div class="flex flex-col items-center gap-5">
               <div
                 class="w-16 h-16 md:w-20 md:h-20 rounded-2xl grid place-items-center text-white font-bold text-3xl md:text-4xl tracking-tight"
-                style="background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
-                       box-shadow: 0 16px 48px rgba(124, 58, 237, 0.4);"
+                style="background: linear-gradient(135deg, #FFD21E 0%, #f59e0b 100%);
+                       box-shadow: 0 16px 48px rgba(255, 210, 30, 0.4);"
               >
                 A
               </div>
@@ -627,7 +627,7 @@ onMounted(async () => {
             <article v-else class="flex gap-3 group">
               <div
                 class="w-7 h-7 rounded-md grid place-items-center flex-shrink-0 mt-0.5 text-xs font-bold text-white"
-                style="background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);"
+                style="background: linear-gradient(135deg, #FFD21E 0%, #f59e0b 100%); color: #1a1a1a;"
               >A</div>
               <div class="flex-1 min-w-0 flex flex-col gap-1.5">
                 <div
