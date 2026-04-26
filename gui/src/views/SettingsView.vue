@@ -1,10 +1,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { api } from "../api.js";
-import {
-  createProviderCatalog,
-  getProvider,
-} from "../data/providers.js";
+import { createProviderCatalog, getProvider } from "../data/providers.js";
 
 const settings = reactive({
   provider: "deepseek",
@@ -16,7 +13,9 @@ const settings = reactive({
 });
 const statusText = ref("");
 const providerCatalog = createProviderCatalog();
-const selectedProvider = computed(() => getProvider(settings.provider) || getProvider("custom"));
+const selectedProvider = computed(
+  () => getProvider(settings.provider) || getProvider("custom"),
+);
 
 const DEFAULT_SYSTEM = `你是一个嵌入在本地控制台里的 Agent，拥有持久化会话、便签索引和真实终端执行能力。
 
@@ -103,32 +102,7 @@ sqlite3 -readonly /Users/woodchange/Desktop/AGENT/database/agent.db \\
 - 按会话过滤任务：\`GET /api/tasks?conversationId=xxx\`
 - 中止任务：\`PATCH /api/tasks?id=任务ID\`，body 只能是 \`{"status":"aborted"}\`
 
-示例：创建任务
-\`\`\`bash
-curl -s http://127.0.0.1:9500/api/tasks \\
-  -H 'Content-Type: application/json' \\
-  -d '{
-    "name": "批量检查日志",
-    "detail": "检查最近错误日志并总结问题",
-    "provider": "deepseek",
-    "model": "deepseek-v4-flash"
-  }'
-\`\`\`
-
-示例：查询任务
-\`\`\`bash
-curl -s 'http://127.0.0.1:9500/api/tasks?limit=20'
-curl -s 'http://127.0.0.1:9500/api/tasks?id=12'
-\`\`\`
-
-示例：中止任务
-\`\`\`bash
-curl -s -X PATCH 'http://127.0.0.1:9500/api/tasks?id=12' \\
-  -H 'Content-Type: application/json' \\
-  -d '{"status":"aborted"}'
-\`\`\`
-
-注意：当前**没有删除任务 API**。如果用户要“删除任务”,先明确说明现在只支持创建、查询和中止,不要假设存在 \`DELETE /api/tasks\`。
+注意：当前**没有删除任务 API**。如果用户要"删除任务",先明确说明现在只支持创建、查询和中止。
 
 # 风格
 - 中文回复，工程向、简洁。
@@ -156,9 +130,7 @@ const save = async () => {
     await api.saveSettings(settings);
     await refresh();
     statusText.value = "已保存";
-    setTimeout(() => {
-      statusText.value = "";
-    }, 1500);
+    setTimeout(() => { statusText.value = ""; }, 1500);
   } catch (e) {
     statusText.value = `保存失败：${e.message}`;
   }
@@ -177,12 +149,7 @@ const onProviderChange = (event) => {
 };
 
 const applyDefault = () => {
-  if (
-    settings.system &&
-    !window.confirm("当前系统提示词非空，是否用默认模板覆盖？")
-  ) {
-    return;
-  }
+  if (settings.system && !window.confirm("当前系统提示词非空，是否用默认模板覆盖？")) return;
   settings.system = DEFAULT_SYSTEM;
 };
 
@@ -196,124 +163,111 @@ onMounted(refresh);
 </script>
 
 <template>
-  <div class="flex-1 min-h-0 flex flex-col gap-5 py-5 px-6 overflow-auto">
-    <div class="flex items-center justify-between gap-3 flex-wrap">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <h2 class="m-0 text-md font-semibold">设置</h2>
-        <p class="m-0 text-xs text-text-mute">
-          模型连接、上下文与系统提示
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
-        <span v-if="statusText" class="text-xs text-text-mute">
-          {{ statusText }}
-        </span>
-        <button class="btn btn-sm btn-ghost" @click="refresh">重载</button>
-        <button class="btn btn-sm btn-primary" @click="save">保存</button>
-      </div>
-    </div>
-
-    <section
-      class="bg-bg-panel border border-border-soft rounded-[10px] p-4 flex flex-col gap-3.5 max-w-[880px]"
-    >
-      <h3 class="m-0 text-sm font-semibold">模型接入</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div class="field">
-          <label class="field-label">供应方</label>
-          <select
-            :value="settings.provider"
-            class="input"
-            @change="onProviderChange"
-          >
-            <optgroup
-              v-for="group in providerCatalog.groups"
-              :key="group.id"
-              :label="group.name"
-            >
-              <option
-                v-for="provider in providerCatalog.getProvidersByGroup(group.id)"
-                :key="provider.id"
-                :value="provider.id"
-              >
-                {{ provider.name }}
-              </option>
-            </optgroup>
-          </select>
-          <span class="field-hint">供应方决定默认 API URL、模型和部分解析逻辑</span>
-        </div>
-        <div class="field">
-          <label class="field-label">API URL</label>
-          <input
-            v-model="settings.apiUrl"
-            class="input"
-            :placeholder="selectedProvider?.apiUrl || 'https://api.openai.com/v1/chat/completions'"
-          />
-          <span class="field-hint">兼容 OpenAI 格式的接口地址</span>
-        </div>
-        <div class="field">
-          <label class="field-label">API Key</label>
-          <input
-            v-model="settings.apiKey"
-            class="input"
-            type="password"
-            placeholder="sk-..."
-          />
-          <span class="field-hint">存储在本地数据库，不会外发</span>
-        </div>
-        <div class="field">
-          <label class="field-label">模型</label>
-          <input
-            v-model="settings.model"
-            class="input"
-            :placeholder="selectedProvider?.defaultModel || 'gpt-5.5 / claude-sonnet-4-6 ...'"
-          />
-        </div>
-        <div class="field">
-          <label class="field-label">上下文轮数</label>
-          <input
-            v-model.number="settings.contextTurns"
-            class="input"
-            type="number"
-            min="0"
-          />
-          <span class="field-hint">发送前保留的最近对话轮数</span>
-        </div>
-      </div>
-    </section>
-
-    <section
-      class="bg-bg-panel border border-border-soft rounded-[10px] p-4 flex flex-col gap-3.5 max-w-[880px]"
-    >
-      <div class="flex items-center justify-between gap-3 flex-wrap">
-        <div class="flex items-center gap-2.5 min-w-0">
-          <h3 class="m-0 text-sm font-semibold">系统提示词</h3>
-          <p class="m-0 text-xs text-text-mute">
-            注入到每次请求前的 system 消息
-          </p>
+  <div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="mx-auto max-w-3xl px-5 py-6 flex flex-col gap-6">
+      <header class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex flex-col gap-1 min-w-0">
+          <h2 class="m-0 text-2xl font-semibold text-text leading-tight">设置</h2>
+          <p class="m-0 text-sm text-text-mute">模型连接、上下文与系统提示</p>
         </div>
         <div class="flex items-center gap-2">
-          <button class="btn btn-sm btn-ghost" @click="clearSystem">
-            清空
-          </button>
-          <button class="btn btn-sm" @click="applyDefault">
-            使用默认模板
-          </button>
+          <span v-if="statusText" class="text-xs text-text-mute">{{ statusText }}</span>
+          <button class="btn btn-sm btn-ghost" @click="refresh">重载</button>
+          <button class="btn btn-sm btn-primary" @click="save">保存</button>
         </div>
-      </div>
-      <div class="field">
-        <textarea
-          v-model="settings.system"
-          class="textarea"
-          rows="16"
-          placeholder="定义 Agent 的角色、风格、工具使用规范…  点右上「使用默认模板」可填入推荐内容。"
-        />
-        <span class="field-hint">
-          推荐包含三件事：<code class="code-inline">&lt;memo&gt;</code> /
-          <code class="code-inline">&lt;summary&gt;</code>
-          协议说明、终端工具使用规范、回复风格。
-        </span>
-      </div>
-    </section>
+      </header>
+
+      <!-- ── 模型接入 ── -->
+      <section class="rounded-2xl border border-border-soft bg-bg-raised p-5 flex flex-col gap-4">
+        <h3 class="m-0 text-sm font-semibold text-text">模型接入</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="field">
+            <label class="field-label">供应方</label>
+            <select :value="settings.provider" class="input" @change="onProviderChange">
+              <optgroup
+                v-for="group in providerCatalog.groups"
+                :key="group.id"
+                :label="group.name"
+              >
+                <option
+                  v-for="provider in providerCatalog.getProvidersByGroup(group.id)"
+                  :key="provider.id"
+                  :value="provider.id"
+                >
+                  {{ provider.name }}
+                </option>
+              </optgroup>
+            </select>
+            <span class="field-hint">供应方决定默认 API URL、模型和部分解析逻辑</span>
+          </div>
+          <div class="field">
+            <label class="field-label">API URL</label>
+            <input
+              v-model="settings.apiUrl"
+              class="input"
+              :placeholder="selectedProvider?.apiUrl || 'https://api.openai.com/v1/chat/completions'"
+            />
+            <span class="field-hint">兼容 OpenAI 格式的接口地址</span>
+          </div>
+          <div class="field">
+            <label class="field-label">API Key</label>
+            <input
+              v-model="settings.apiKey"
+              class="input"
+              type="password"
+              placeholder="sk-..."
+            />
+            <span class="field-hint">存储在本地数据库,不会外发</span>
+          </div>
+          <div class="field">
+            <label class="field-label">模型</label>
+            <input
+              v-model="settings.model"
+              class="input"
+              :placeholder="selectedProvider?.defaultModel || 'gpt-5 / claude-opus-4-7 ...'"
+            />
+          </div>
+          <div class="field">
+            <label class="field-label">上下文轮数</label>
+            <input
+              v-model.number="settings.contextTurns"
+              class="input"
+              type="number"
+              min="0"
+            />
+            <span class="field-hint">发送前保留的最近对话轮数</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── 系统提示词 ── -->
+      <section class="rounded-2xl border border-border-soft bg-bg-raised p-5 flex flex-col gap-4">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <h3 class="m-0 text-sm font-semibold text-text">系统提示词</h3>
+            <p class="m-0 text-xs text-text-mute">注入到每次请求前的 system 消息</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="btn btn-sm btn-ghost" @click="clearSystem">清空</button>
+            <button class="btn btn-sm" @click="applyDefault">使用默认模板</button>
+          </div>
+        </div>
+        <div class="field">
+          <textarea
+            v-model="settings.system"
+            class="textarea font-mono"
+            rows="16"
+            placeholder="定义 Agent 的角色、风格、工具使用规范…  点右上「使用默认模板」可填入推荐内容。"
+            style="font-size: 12px; line-height: 1.6;"
+          />
+          <span class="field-hint">
+            推荐包含三件事:<code class="code-inline">&lt;memo&gt;</code> /
+            <code class="code-inline">&lt;summary&gt;</code>
+            协议说明、终端工具使用规范、回复风格。
+          </span>
+        </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -322,7 +276,7 @@ onMounted(refresh);
   font-family: var(--font-mono);
   font-size: 11.5px;
   background: var(--color-bg-inset);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-soft);
   border-radius: 4px;
   padding: 0 4px;
   color: var(--color-text-dim);

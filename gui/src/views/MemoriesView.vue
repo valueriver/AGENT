@@ -89,136 +89,132 @@ onMounted(refresh);
 </script>
 
 <template>
-  <div class="flex-1 min-h-0 flex flex-col gap-3.5 py-5 px-6 overflow-auto">
-    <div class="flex items-center justify-between gap-3 flex-wrap">
-      <div class="flex items-center gap-2.5 min-w-0">
-        <h2 class="m-0 text-md font-semibold">记忆</h2>
-        <p class="m-0 text-xs text-text-mute">
-          跨会话沉淀 · 共 {{ counts.total }} 条 · 必读
-          {{ counts.pinned }} · 星标 {{ counts.starred }} · 隐藏
-          {{ counts.hidden }}
-        </p>
-      </div>
-      <div class="flex items-center gap-2">
+  <div class="flex-1 min-h-0 overflow-y-auto">
+    <div class="mx-auto max-w-5xl px-5 py-6 flex flex-col gap-5">
+      <header class="flex items-center justify-between gap-3 flex-wrap">
+        <div class="flex items-baseline gap-3 min-w-0">
+          <h2 class="m-0 text-2xl font-semibold text-text leading-tight">记忆</h2>
+          <p class="m-0 text-sm text-text-mute">
+            跨会话沉淀 · 共 {{ counts.total }} 条
+            <span class="text-text-faint">·</span>
+            必读 {{ counts.pinned }} · 星标 {{ counts.starred }} · 隐藏 {{ counts.hidden }}
+          </p>
+        </div>
         <button class="btn btn-sm btn-ghost" @click="refresh">刷新</button>
-      </div>
-    </div>
+      </header>
 
-    <p v-if="errorText" class="inline-error">{{ errorText }}</p>
+      <p v-if="errorText" class="inline-error">{{ errorText }}</p>
 
-    <div class="form-card">
-      <div class="field">
-        <label class="field-label">标题</label>
-        <input
-          v-model="newMemory.title"
-          class="input"
-          placeholder="例如：产品偏好"
-        />
-      </div>
-      <div class="field">
-        <label class="field-label">描述（可选）</label>
-        <input
-          v-model="newMemory.description"
-          class="input"
-          placeholder="一句话说明何时触发"
-        />
-      </div>
-      <div class="field col-span-full">
-        <label class="field-label">内容</label>
-        <textarea
-          v-model="newMemory.content"
-          class="textarea"
-          rows="4"
-          placeholder="记下具体事实、偏好或规则…"
-        />
-      </div>
-      <div class="field col-span-full">
-        <label class="field-label">可见性</label>
-        <div class="flex flex-wrap gap-2">
-          <button
-            v-for="v in VISIBILITY_ORDER"
-            :key="v"
-            type="button"
-            class="btn btn-sm"
-            :class="newMemory.visibility === v ? 'btn-primary' : 'btn-ghost'"
-            @click="newMemory.visibility = v"
-          >
-            {{ VISIBILITY_META[v].label }}
-          </button>
-        </div>
-        <span class="field-hint">
-          {{ VISIBILITY_META[newMemory.visibility]?.hint }}
-        </span>
-      </div>
-      <div class="col-span-full flex justify-end gap-2">
-        <button
-          class="btn btn-sm btn-primary"
-          :disabled="!newMemory.title.trim() || !newMemory.content.trim()"
-          @click="submit"
-        >
-          保存记忆
-        </button>
-      </div>
-    </div>
-
-    <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(360px,1fr))]">
-      <article
-        v-for="memory in memories"
-        :key="memory.id"
-        class="item-card"
-        :class="{ 'opacity-55': !memory.enabled }"
+      <!-- ── 新建表单(卡片化) ── -->
+      <section
+        class="rounded-2xl border border-border-soft bg-bg-raised p-5 flex flex-col gap-4"
       >
-        <div class="flex items-start justify-between gap-2.5">
-          <div class="text-sm font-semibold leading-snug break-words">
-            {{ memory.title }}
+        <h3 class="m-0 text-sm font-semibold text-text">新建记忆</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="field">
+            <label class="field-label">标题</label>
+            <input v-model="newMemory.title" class="input" placeholder="例如：产品偏好" />
           </div>
-          <span
-            class="badge"
-            :class="VISIBILITY_META[memory.visibility]?.badge || 'badge-neutral'"
-          >
-            {{ VISIBILITY_META[memory.visibility]?.label || memory.visibility }}
-          </span>
+          <div class="field">
+            <label class="field-label">描述（可选）</label>
+            <input v-model="newMemory.description" class="input" placeholder="一句话说明何时触发" />
+          </div>
         </div>
-        <div
-          v-if="memory.description"
-          class="text-xs text-text-mute break-words"
-        >
-          {{ memory.description }}
+        <div class="field">
+          <label class="field-label">内容</label>
+          <textarea
+            v-model="newMemory.content"
+            class="textarea"
+            rows="4"
+            placeholder="记下具体事实、偏好或规则…"
+          />
         </div>
-        <div class="text-xs text-text-dim leading-relaxed break-words">
-          {{ previewText(memory.content) }}
-        </div>
-
-        <div class="flex flex-col gap-1.5 mt-0.5">
-          <span class="text-xxs text-text-faint">可见性</span>
-          <div class="flex flex-wrap gap-1.5">
+        <div class="field">
+          <label class="field-label">可见性</label>
+          <div class="flex flex-wrap gap-2">
             <button
               v-for="v in VISIBILITY_ORDER"
               :key="v"
               type="button"
               class="btn btn-sm"
-              :class="memory.visibility === v ? 'btn-primary' : 'btn-ghost'"
-              @click="setVisibility(memory, v)"
+              :class="newMemory.visibility === v ? 'btn-primary' : 'btn-ghost'"
+              @click="newMemory.visibility = v"
             >
               {{ VISIBILITY_META[v].label }}
             </button>
           </div>
+          <span class="field-hint">{{ VISIBILITY_META[newMemory.visibility]?.hint }}</span>
         </div>
-
-        <div class="flex gap-1.5 mt-0.5">
-          <button class="btn btn-sm" @click="toggleEnabled(memory)">
-            {{ memory.enabled ? "停用" : "启用" }}
-          </button>
-          <button class="btn btn-sm btn-danger" @click="remove(memory.id)">
-            删除
+        <div class="flex justify-end">
+          <button
+            class="btn btn-sm btn-primary"
+            :disabled="!newMemory.title.trim() || !newMemory.content.trim()"
+            @click="submit"
+          >
+            保存记忆
           </button>
         </div>
-      </article>
-    </div>
+      </section>
 
-    <div v-if="memories.length === 0" class="empty">
-      <div class="text-text-dim font-medium">暂无记忆</div>
-      <div class="text-xs text-text-faint">在上方表单创建第一条</div>
+      <!-- ── 列表(网格卡片) ── -->
+      <div class="grid gap-3 grid-cols-[repeat(auto-fill,minmax(340px,1fr))]">
+        <article
+          v-for="memory in memories"
+          :key="memory.id"
+          class="item-card"
+          :class="{ 'opacity-50': !memory.enabled }"
+        >
+          <div class="flex items-start justify-between gap-2.5">
+            <div class="text-sm font-semibold text-text leading-snug break-words">
+              {{ memory.title }}
+            </div>
+            <span
+              class="badge"
+              :class="VISIBILITY_META[memory.visibility]?.badge || 'badge-neutral'"
+            >
+              {{ VISIBILITY_META[memory.visibility]?.label || memory.visibility }}
+            </span>
+          </div>
+          <div v-if="memory.description" class="text-xs text-text-mute break-words">
+            {{ memory.description }}
+          </div>
+          <div class="text-xs text-text-dim leading-relaxed break-words">
+            {{ previewText(memory.content) }}
+          </div>
+
+          <div class="flex flex-col gap-1.5 mt-1">
+            <span class="text-xxs text-text-faint uppercase tracking-wider font-semibold">
+              可见性
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <button
+                v-for="v in VISIBILITY_ORDER"
+                :key="v"
+                type="button"
+                class="btn btn-sm"
+                :class="memory.visibility === v ? 'btn-primary' : 'btn-ghost'"
+                @click="setVisibility(memory, v)"
+              >
+                {{ VISIBILITY_META[v].label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="flex gap-1.5 mt-1">
+            <button class="btn btn-sm" @click="toggleEnabled(memory)">
+              {{ memory.enabled ? "停用" : "启用" }}
+            </button>
+            <button class="btn btn-sm btn-danger" @click="remove(memory.id)">
+              删除
+            </button>
+          </div>
+        </article>
+      </div>
+
+      <div v-if="memories.length === 0" class="empty">
+        <div class="text-text-dim font-medium">暂无记忆</div>
+        <div class="text-xs text-text-faint">在上方表单创建第一条</div>
+      </div>
     </div>
   </div>
 </template>
